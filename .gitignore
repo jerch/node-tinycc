@@ -1,0 +1,9 @@
+.idea/
+build/
+coverage/
+linux/
+node-tinycc.iml
+node_modules/
+tinycc/
+lib_build/
+posix/

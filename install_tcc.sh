@@ -1,10 +1,10 @@
 #!/bin/sh
 echo $(pwd)
 rm -rf ./tinycc
-rm -rf ./build
+rm -rf ./lib_build
 git clone git://repo.or.cz/tinycc.git
-mkdir build
-cd build
-../tinycc/configure --prefix=../linux --with-libgcc --disable-static
+mkdir lib_build
+cd lib_build
+../tinycc/configure --prefix=../posix --with-libgcc --extra-cflags="-fPIC"
 make all
 make install
