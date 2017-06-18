@@ -40,7 +40,7 @@ public:
 private:
     TCC() {
         state = tcc_new();
-        tcc_set_output_type(state, 0);
+        tcc_set_output_type(state, 1);
     }
     ~TCC() {
         tcc_delete(state);
