@@ -1,5 +1,4 @@
 #!/bin/sh
-echo $(pwd)
 rm -rf ./tinycc
 rm -rf ./lib_build
 git clone git://repo.or.cz/tinycc.git

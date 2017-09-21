@@ -30,6 +30,16 @@ Tcc.prototype.set_function = function(symbol, cb) {
 };
 
 /**
+ * Function to create a compiler state which defaults to bundled tcc.
+ */
+function DefaultTcc() {
+    let state = new Tcc();
+    state.setLibPath('./posix/lib/tcc/');
+    state.addIncludePath('./posix/lib/tcc/include/');
+    return state;
+}
+
+/**
  * C function type.
  * wrapper for lazy evaluation of ffi.ForeignFunction
  */
@@ -164,6 +174,7 @@ const c_function = function(restype, name, args, code) {
 };
 
 module.exports.Tcc = Tcc;
+module.exports.DefaultTcc = DefaultTcc;
 module.exports.CFuncType = CFuncType;
 module.exports.InlineGenerator = InlineGenerator;
 module.exports.Declaration = Declaration;
