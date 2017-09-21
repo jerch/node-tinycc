@@ -8,6 +8,7 @@ TODO:
 
 const ffi = require('ffi');
 const ref = require('ref');
+const path = require('path');
 
 const Tcc = require('./build/Release/tcc').TCC;
 Tcc.prototype.resolveSymbol = function(symbol, type) {
@@ -34,8 +35,8 @@ Tcc.prototype.set_function = function(symbol, cb) {
  */
 function DefaultTcc() {
     let state = new Tcc();
-    state.setLibPath('./posix/lib/tcc/');
-    state.addIncludePath('./posix/lib/tcc/include/');
+    state.setLibPath(path.join(__dirname, 'posix', 'lib', 'tcc'));
+    state.addIncludePath(path.join(__dirname, 'posix', 'lib', 'tcc', 'include'));
     return state;
 }
 

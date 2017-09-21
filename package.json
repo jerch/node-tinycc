@@ -1,6 +1,6 @@
 {
   "name": "node-tinycc",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Inline C in Javascript with TinyCC.",
   "main": "index.js",
   "scripts": {
@@ -8,7 +8,7 @@
     "preinstall": "./install_tcc.sh",
     "install": "node-gyp rebuild"
   },
-  "author": "",
+  "author": "Joerg Breitbart <j.breitbart@netzkolchose.de>",
   "license": "MIT",
   "dependencies": {
     "ffi": "^2.2.0",
