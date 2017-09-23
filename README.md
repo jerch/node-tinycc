@@ -4,7 +4,7 @@ This node module let you embed and run C code on the fly
 with the help of the Tiny C Compiler.
 
 **NOTE**: This is early alpha and only tested under Linux.
-Struct and array types are not supported yet.
+Array types are not supported yet.
 
 ### Usage
 
@@ -48,6 +48,6 @@ See tests for more usage examples.
 
 ### TODO
 
-- struct and array type support
+- array type support
 - Windows and OSX port
 - more tests
