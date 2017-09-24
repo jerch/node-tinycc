@@ -9,8 +9,9 @@ const ArrayType = require('ref-array');
 let Tcc = null;
 
 /* istanbul ignore if */
-if (process.plattform === 'win32') {
-  const TCCState_p = ref.refType(ref.types.void);
+if (process.platform === 'win32') {
+  const void_p = ref.refType(ref.types.void);
+  const TCCState_p = void_p;
   Tcc = function(tcclib) {
     if (!(this instanceof Tcc))
       return new Tcc(tcclib);

@@ -4,7 +4,7 @@
   "description": "Inline C in Javascript with Tiny C Compiler.",
   "main": "index.js",
   "scripts": {
-    "test": "node_modules/istanbul/lib/cli.js cover node_modules/mocha/bin/_mocha -- -R spec",
+    "test": "node node_modules/istanbul/lib/cli.js cover node_modules/mocha/bin/_mocha -- -R spec",
     "preinstall": "node preinstall.js",
     "install": "node install.js"
   },
