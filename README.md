@@ -3,21 +3,26 @@
 This node module let you embed and run C code on the fly
 with the help of the Tiny C Compiler.
 
-**NOTE**: This is early alpha and only tested under Linux.
-Array types are not supported yet.
+**NOTE**: Linux only for now.
+
+### Features
+
+- inline C functions in JS
+- JS callbacks in C
+- struct and array support
 
 ### Usage
 
 ```javascript
-const TinyCC = require('node-tinycc');
+const tcc = require('node-tinycc');
 
 // create a code generator
-let gen = TinyCC.InlineGenerator();
-// create a compiler state
-let state = TinyCC.DefaultTcc();
+let gen = tcc.InlineGenerator();
+// create a compile state
+let state = tcc.DefaultTcc();
 
 // declare a C function
-let c_func = TinyCC.c_function(
+let c_func = tcc.c_function(
     'int',                          // return type
     'add',                          // function name in C
     [['int', 'a'], ['int', 'b']],   // parameters as [type, name]
@@ -26,7 +31,7 @@ let c_func = TinyCC.c_function(
 gen.add_declaration(c_func);
 
 // add a JS function declaration to C
-let js_func = TinyCC.c_callable(
+let js_func = tcc.c_callable(
     'int',                          // return type
     'js_func',                      // function name in C
     ['int', 'int'],                 // parameter types
@@ -48,6 +53,4 @@ See tests for more usage examples.
 
 ### TODO
 
-- array type support
 - Windows and OSX port
-- more tests

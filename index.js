@@ -4,6 +4,7 @@ const ffi = require('ffi');
 const ref = require('ref');
 const path = require('path');
 const StructType = require('ref-struct');
+const ArrayType = require('ref-array');
 const Tcc = require('./build/Release/tcc').TCC;
 
 /**
@@ -16,7 +17,7 @@ Tcc.prototype.resolveSymbol = function(symbol, type) {
   type = ref.coerceType(type);
   let res = this.getSymbol(symbol).reinterpret(type.size);
   res.type = type;
-  if (type.name === 'StructType')
+  if (type.name === 'StructType' || type.name === 'ArrayType')
     res = new type(res);
   return res;
 };
@@ -54,7 +55,6 @@ function CFuncType(restype, args) {
   return (pointer) => ffi.ForeignFunction(pointer, restype, args);
 }
 
-
 /**
  * Create a C code object to be used with InlineGenerator.
  */
@@ -66,7 +66,6 @@ function Declaration(code, forward, symbols) {
   this.symbols = symbols || [];
   this.symbols_resolved = {};
 }
-
 
 /**
  * Code generator for inline C in Javascript. Handles back and forth symbol resolution.
@@ -156,24 +155,60 @@ function c_callable(restype, name, args, f) {
   );
 }
 
-// helper to resolve C name from StructType
-function _type2c(type) {
-  type = ref.coerceType(type);
-  let typename = type.name;
-  if (typename.startsWith('StructType')) {
-    if (!type.prototype._name)
-      throw new Error(`unkown C name for type ${type}`);
-    typename = `struct ${typename.replace('StructType', type.prototype._name)}`;
+function _postfix(res, type) {
+    type = ref.coerceType(type);
+    let typename = type.name;
+    while (typename.endsWith('*')) {
+      res.push('*');
+      typename = typename.slice(0, -1);
+    }
+    if (typename === 'StructType') {
+        if (!type.prototype._name)
+            throw new Error('unkown C name for type '+ typename);
+        res.push(`struct ${type.prototype._name}`);
+    } else if (typename === 'ArrayType') {
+        res.push(`${'['+ (type.fixedLength || '') +']'}`);
+        _postfix(res, type.type);
+    } else
+      res.push(typename);
+    return res;
+}
+
+// create full cdecl for parameters and struct members
+function _cdecl(varname, type) {
+  let pf = _postfix([varname], type);
+  let s = pf.shift();
+  while (pf.length > 1) {
+    let token = pf.shift();
+    if (token.startsWith('['))
+      s += token;
+    else
+      s = token + s;
+    s = `(${s})`;
   }
-  return typename;
+  return `${pf.shift()} ${s}`;
+}
+
+// helper to resolve C names for restype
+function _restype(type) {
+    type = ref.coerceType(type);
+    let typename = type.name;
+    if (typename.startsWith('StructType')) {
+        if (!type.prototype._name)
+            throw new Error('unkown C name for type '+ type);
+        typename = `struct ${typename.replace('StructType', type.prototype._name)}`;
+    } else if (typename.startsWith('ArrayType')) {
+        throw new Error('ArrayType not allowed as restype');
+    }
+    return typename;
 }
 
 /**
  * Convenient function to create a C function useable from JS.
  */
 function c_function(restype, name, args, code) {
-  let header = `${_type2c(restype)} ${name}`;
-  header += `(${args.map(([type, varname]) => `${_type2c(type)} ${varname}`).join(', ')})`;
+  let header = `${_restype(restype)} ${name}`;
+  header += `(${args.map(([type, varname]) => _cdecl(varname, type)).join(', ')})`;
   let declaration = new Declaration(
     header + `\n{\n${code}\n}\n`,
     header + ';',
@@ -201,11 +236,11 @@ function c_struct(name, structType) {
       fields.sort((a, b) => {
         return structType.fields[a].offset - structType.fields[b].offset;
       });
-      let result = fields.map(
-        // FIXME: declare member alignment
-        (el) => `  ${_type2c(structType.fields[el].type)} ${el};`
+      let members = fields.map(
+        // FIXME: need to declare member alignment?
+        (el) => `  ${_cdecl(el, structType.fields[el].type)};`
       ).join('\n');
-      return `struct __attribute__((aligned(${structType.alignment}))) ${name} {\n${result}\n};`;
+      return `struct __attribute__((aligned(${structType.alignment}))) ${name} {\n${members}\n};`;
     },
     `struct ${name};`,
     []
@@ -221,3 +256,4 @@ module.exports.Declaration = Declaration;
 module.exports.c_function = c_function;
 module.exports.c_callable = c_callable;
 module.exports.c_struct = c_struct;
+module.exports._cdecl = _cdecl;
