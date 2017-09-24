@@ -41,6 +41,9 @@ private:
     TCC() {
         state = tcc_new();
         tcc_set_output_type(state, 1);
+#if defined(__APPLE__)
+        tcc_set_options(state, "-nostdlib");
+#endif
     }
     ~TCC() {
         tcc_delete(state);
