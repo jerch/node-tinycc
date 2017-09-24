@@ -9,9 +9,7 @@ describe('TCC tests', function() {
   describe('basic tests', function() {
     let state;
     beforeEach(function(){
-      state = tcc.Tcc();
-      state.setLibPath('./posix/lib/tcc/');
-      state.addIncludePath('./posix/lib/tcc/include/');
+      state = tcc.DefaultTcc();
     });
     it('compile & run', function(){
       state.compile('int main(int argc, char *argv[]) {return 123;}');
@@ -63,9 +61,7 @@ describe('TCC tests', function() {
     let state;
     let gen;
     beforeEach(function(){
-      state = tcc.Tcc();
-      state.setLibPath('./posix/lib/tcc/');
-      state.addIncludePath('./posix/include/');
+      state = tcc.DefaultTcc();
       gen = tcc.InlineGenerator();
     });
     it('add declaration', function(){
