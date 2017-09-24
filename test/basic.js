@@ -10,8 +10,6 @@ describe('TCC tests', function() {
     let state;
     beforeEach(function(){
       state = tcc.Tcc();
-      state.setLibPath('./posix/lib/tcc/');
-      state.addIncludePath('./posix/lib/tcc/include/');
     });
     it('compile & run', function(){
       state.compile('int main(int argc, char *argv[]) {return 123;}');
@@ -64,8 +62,6 @@ describe('TCC tests', function() {
     let gen;
     beforeEach(function(){
       state = tcc.Tcc();
-      state.setLibPath('./posix/lib/tcc/');
-      state.addIncludePath('./posix/include/');
       gen = tcc.InlineGenerator();
     });
     it('add declaration', function(){
@@ -179,7 +175,7 @@ describe('TCC tests', function() {
   describe('struct tests', function() {
     let state;
     beforeEach(function(){
-      state = tcc.DefaultTcc();
+      state = tcc.Tcc();
     });
     it('declare simple struct', function() {
       let S = tcc.c_struct('S', StructType({a: 'int'}));
@@ -319,7 +315,7 @@ describe('TCC tests', function() {
   });
   describe('array tests', function() {
     it('resolve and set array elements', function() {
-      let state = tcc.DefaultTcc();
+      let state = tcc.Tcc();
       state.compile('int test[5] = {0, 1, 2, 3, 4};');
       state.relocate();
       let A = ArrayType('int', 5);
@@ -334,7 +330,7 @@ describe('TCC tests', function() {
       assert.deepEqual(a.toArray(), [10, 11, 12, 13, 14]);
     });
     it('array in struct', function() {
-      let state = tcc.DefaultTcc();
+      let state = tcc.Tcc();
       let gen = tcc.InlineGenerator();
       let A = ArrayType('int', 3);
       let S = tcc.c_struct('S', StructType({a: A}));
@@ -349,7 +345,7 @@ describe('TCC tests', function() {
     });
     /* NOT WORKING - bug in ref-array?
     it('array pointer in struct', function() {
-      let state = tcc.DefaultTcc();
+      let state = tcc.Tcc();
       let gen = tcc.InlineGenerator();
       let A = ArrayType('int');
       let S = tcc.c_struct('S', StructType({a: ref.refType(A)}));
@@ -368,7 +364,7 @@ describe('TCC tests', function() {
     });
     it('multiple bind_state calls return same symbols map', function() {
       let gen = tcc.InlineGenerator();
-      let state = tcc.DefaultTcc();
+      let state = tcc.Tcc();
       let S = tcc.c_struct('S', StructType({a: 'int'}));
       gen.add_declaration(S);
       let add = tcc.c_function('int', 'add', [[S, 'a'], [S, 'b']], 'return a.a + b.a;');

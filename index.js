@@ -5,7 +5,102 @@ const ref = require('ref');
 const path = require('path');
 const StructType = require('ref-struct');
 const ArrayType = require('ref-array');
-const Tcc = require('./build/Release/tcc').TCC;
+//const Tcc = require('./build/Release/tcc').TCC;
+
+
+
+var void_p = ref.refType(ref.types.void);
+var TCCState_p = void_p;
+
+function Tcc(tcclib, tccpath) {
+  if (!(this instanceof Tcc))
+    return new Tcc(tcclib, tccpath);
+  this.lib = ffi.Library(tcclib || './win64/libtcc.dll', {
+    // missing: tcc_enable_debug, tcc_set_error_func, tcc_set_warning, tcc_add_sysinclude_path, tcc_output_file
+    'tcc_new':              [TCCState_p,  []],
+    'tcc_delete':           ['void',      [TCCState_p]],                       // TODO: explicit destructor
+    'tcc_set_lib_path':     ['void',      [TCCState_p, 'string']],
+    'tcc_set_output_type':  ['int',       [TCCState_p, 'int']],
+    'tcc_set_options':      ['void',      [TCCState_p, 'string']],
+    'tcc_define_symbol':    ['void',      [TCCState_p, 'string', 'string']],
+    'tcc_undefine_symbol':  ['void',      [TCCState_p, 'string']],
+    'tcc_add_include_path': ['int',       [TCCState_p, 'string']],
+    'tcc_add_library':      ['int',       [TCCState_p, 'string']],
+    'tcc_add_library_path': ['int',       [TCCState_p, 'string']],
+    'tcc_add_file':         ['int',       [TCCState_p, 'string']],    // TODO: check unicode compat
+    'tcc_compile_string':   ['int',       [TCCState_p, 'string']],
+    'tcc_relocate':         ['int',       [TCCState_p, 'int']],
+    'tcc_add_symbol':       ['int',       [TCCState_p, 'string', 'string']],
+    'tcc_get_symbol':       [void_p,      [TCCState_p, 'string']],
+    'tcc_run':              ['int',       [TCCState_p, 'int', void_p]]
+  });
+  this.ctx = this.lib.tcc_new();
+  this.lib.tcc_set_lib_path(this.ctx, tccpath || './win64');
+  this.lib.tcc_set_output_type(this.ctx, 1);  // memory build only
+  this._obj_refs = {};
+}
+Tcc.prototype.setOptions = function(option) {
+  this.lib.tcc_set_option(this.ctx, option);
+}
+Tcc.prototype.defineSymbol = function(symbol, value) {
+  this.lib.tcc_define_symbol(this.ctx, symbol, value);
+}
+Tcc.prototype.undefineSymbol = function(symbol) {
+  this.lib.tcc_undefine_symbol(this.ctx, symbol);
+}
+Tcc.prototype.addIncludePath = function(path) {
+  if (this.lib.tcc_add_include_path(this.ctx, path) == -1)
+    throw new Error('error add_include_path: ' + path);
+}
+Tcc.prototype.addLibrary = function(library) {
+  if (this.lib.tcc_add_library(this.ctx, library) == -1)
+    throw new Error('error add_library: ' + library);
+}
+Tcc.prototype.addLibraryPath = function(path) {
+  if (this.lib.tcc_add_library_path(this.ctx, path) == -1)
+    throw new Error('error add_link_path: ' + path);
+}
+Tcc.prototype.addFile = function(path) {
+  if (this.lib.tcc_add_file(this.ctx, path) == -1)
+    throw new Error('error add_file: ' + path);
+}
+Tcc.prototype.compile = function(code) {
+  if (this.lib.tcc_compile_string(this.ctx, code) == -1)
+    throw new Error('error compile');
+}
+Tcc.prototype.relocate = function() {
+  if (this.lib.tcc_relocate(this.ctx, 1) == -1)
+    throw new Error('compile relocate');
+}
+Tcc.prototype.run = function(argc, argv) {
+  // TODO: handle string array
+  return this.lib.tcc_run(this.ctx, argc, argv);
+}
+Tcc.prototype.addSymbol = function(symbol, value) {  // TODO: hold ref for value
+  if (this.lib.tcc_add_symbol(this.ctx, symbol, value) == -1)
+    throw new Error('error add_symbol: ' + symbol);
+}
+Tcc.prototype.getSymbol = function(symbol) {
+  return this.lib.tcc_get_symbol(this.ctx, symbol);
+}
+Tcc.prototype.resolve_symbol = function(symbol, type) {
+  // TODO: support array and struct
+  if (typeof type === "function")
+    return type(this.get_symbol(symbol));
+  type = ref.coerceType(type);
+  var res = this.get_symbol(symbol).reinterpret(type.size);
+  res.type = type;
+  return res;
+}
+Tcc.prototype.set_symbol = function(symbol, value) {  // TODO: hold ref for value
+  var buf = this.get_symbol(symbol).reinterpret(value.type.size);
+  buf.type = value.type;
+  ref.set(buf, 0, value.deref());
+}
+Tcc.prototype.set_function = function(symbol, cb) {   // TODO: hold ref for value
+  ref.set(this.resolve_symbol(symbol, 'void *'), 0, cb);
+}
+
 
 /**
  * Resolve value of a C symbol name to the given type.
