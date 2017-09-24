@@ -4,9 +4,7 @@
   "description": "Inline C in Javascript with TinyCC.",
   "main": "index.js",
   "scripts": {
-    "test": "node_modules/istanbul/lib/cli.js cover node_modules/mocha/bin/_mocha -- -R spec",
-    "preinstall": "./install_tcc.sh",
-    "install": "node-gyp rebuild"
+    "test": "node_modules/istanbul/lib/cli.js cover node_modules/mocha/bin/_mocha -- -R spec"
   },
   "author": "Joerg Breitbart <j.breitbart@netzkolchose.de>",
   "license": "MIT",
