@@ -1,9 +1,10 @@
-## node-tinycc
+Run inline C code on the fly.
 
-This node module let you embed and run C code on the fly
-with the help of the Tiny C Compiler.
+Tested on:
 
-**NOTE**: Linux only for now.
+- Linux with nodejs 6.11 64bit, gcc 4.8
+- OSX 10.10 with nodejs 6.10, llvm 3.5 (Cave! TCC is not fully
+ported to OSX, support is experimental!)
 
 ### Features
 
@@ -53,4 +54,4 @@ See tests for more usage examples.
 
 ### TODO
 
-- Windows and OSX port
+- Windows support

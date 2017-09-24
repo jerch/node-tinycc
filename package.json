@@ -1,7 +1,7 @@
 {
   "name": "node-tinycc",
-  "version": "0.0.3",
-  "description": "Inline C in Javascript with TinyCC.",
+  "version": "0.0.4",
+  "description": "Inline C in Javascript with Tiny C Compiler.",
   "main": "index.js",
   "scripts": {
     "test": "node_modules/istanbul/lib/cli.js cover node_modules/mocha/bin/_mocha -- -R spec",

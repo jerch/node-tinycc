@@ -174,7 +174,7 @@ function _postfix(res, type) {
     return res;
 }
 
-// create full cdecl for parameters and struct members
+// create full c declaration for parameters and struct members
 function _cdecl(varname, type) {
   let pf = _postfix([varname], type);
   let s = pf.shift();
