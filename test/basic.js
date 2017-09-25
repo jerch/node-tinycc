@@ -122,54 +122,107 @@ describe('TCC tests', function() {
       assert.equal(use(23, 42), 65);
     });
   });
-  describe('cdecl generation', function() {
+  describe('c declarations', function() {
       it('int a', function() {
-        assert.equal(tcc._cdecl('a', 'int'), 'int a');
+        assert.equal(tcc._var_decl('a', 'int'), 'int a');
       });
       it('int *a', function() {
-        assert.equal(tcc._cdecl('a', 'int*'), 'int (*a)');
+        assert.equal(tcc._var_decl('a', 'int*'), 'int (*a)');
       });
       it('int **a', function() {
-        assert.equal(tcc._cdecl('a', 'int**'), 'int (*(*a))');
+        assert.equal(tcc._var_decl('a', 'int**'), 'int (*(*a))');
       });
       it('int a[]', function() {
-        assert.equal(tcc._cdecl('a', ArrayType('int')), 'int (a[])');
+        assert.equal(tcc._var_decl('a', ArrayType('int')), 'int (a[])');
       });
       it('int a[5]', function() {
-        assert.equal(tcc._cdecl('a', ArrayType('int', 5)), 'int (a[5])');
+        assert.equal(tcc._var_decl('a', ArrayType('int', 5)), 'int (a[5])');
       });
       it('int *a[]', function() {
-        assert.equal(tcc._cdecl('a', ArrayType(ref.refType('int'))), 'int (*(a[]))');
+        assert.equal(tcc._var_decl('a', ArrayType(ref.refType('int'))), 'int (*(a[]))');
       });
       it('int *a[5]', function() {
-        assert.equal(tcc._cdecl('a', ArrayType(ref.refType('int'), 5)), 'int (*(a[5]))');
+        assert.equal(tcc._var_decl('a', ArrayType(ref.refType('int'), 5)), 'int (*(a[5]))');
       });
       it('int (*a)[5]', function() {
-        assert.equal(tcc._cdecl('a', ref.refType(ArrayType('int', 5))), 'int ((*a)[5])');
+        assert.equal(tcc._var_decl('a', ref.refType(ArrayType('int', 5))), 'int ((*a)[5])');
       });
       it('int a[][]', function() {
-        assert.equal(tcc._cdecl('a', ArrayType(ArrayType('int'))), 'int ((a[])[])');
+        assert.equal(tcc._var_decl('a', ArrayType(ArrayType('int'))), 'int ((a[])[])');
       });
       it('int a[2][5]', function() {
-        assert.equal(tcc._cdecl('a', ArrayType(ArrayType('int', 5), 2)), 'int ((a[2])[5])');
+        assert.equal(tcc._var_decl('a', ArrayType(ArrayType('int', 5), 2)), 'int ((a[2])[5])');
       });
       it('int *a[2][5]', function() {
-        assert.equal(tcc._cdecl('a', ArrayType(ArrayType(ref.refType('int'), 5), 2)),
+        assert.equal(tcc._var_decl('a', ArrayType(ArrayType(ref.refType('int'), 5), 2)),
           'int (*((a[2])[5]))');
       });
       it('struct T t', function() {
-        assert.equal(tcc._cdecl('t', tcc.c_struct('T', StructType())), 'struct T t');
+        assert.equal(tcc._var_decl('t', tcc.c_struct('T', StructType())), 'struct T t');
       });
       it('struct T *t', function() {
-        assert.equal(tcc._cdecl('t', ref.refType(tcc.c_struct('T', StructType()))), 'struct T (*t)');
+        assert.equal(tcc._var_decl('t', ref.refType(tcc.c_struct('T', StructType()))), 'struct T (*t)');
       });
       it('struct T t[]', function() {
         let A = ArrayType(tcc.c_struct('T', StructType({a: 'int'})));
-        assert.equal(tcc._cdecl('t', A), 'struct T (t[])');
+        assert.equal(tcc._var_decl('t', A), 'struct T (t[])');
       });
       it('struct T t[5]', function() {
         let A = ArrayType(tcc.c_struct('T', StructType({a: 'int'})), 5);
-        assert.equal(tcc._cdecl('t', A), 'struct T (t[5])');
+        assert.equal(tcc._var_decl('t', A), 'struct T (t[5])');
+      });
+      it('void a()', function() {
+        assert.equal(tcc._func_decl('void', 'a', []), 'void a()');
+      });
+      it('int a(int x, int y)', function() {
+        assert.equal(tcc._func_decl('int', 'a', [['int', 'x'], ['int', 'y']]), 'int a(int x, int y)');
+      });
+      it('int* a(char* x)', function() {
+        assert.equal(tcc._func_decl('int*', 'a', [['char*', 'x']]), 'int* a(char (*x))');
+      });
+      it('int** a(char** x, char** y)', function() {
+        assert.equal(tcc._func_decl('int**', 'a', [['char**', 'x'], ['char**', 'y']]),
+            'int** a(char (*(*x)), char (*(*y)))');
+      });
+      it('struct T* a(struct T t)', function() {
+        let T = tcc.c_struct('T', StructType());
+        assert.equal(tcc._func_decl(ref.refType(T), 'a', [[T, 't']]),
+            'struct T* a(struct T t)');
+      });
+      it('void a(struct T** t)', function() {
+        let T = tcc.c_struct('T', StructType());
+        assert.equal(tcc._func_decl('void', 'a', [[ref.refType(ref.refType(T)), 't']]),
+            'void a(struct T (*(*t)))');
+      });
+      it('void (*a)()', function() {
+        assert.equal(tcc._func_decl('void', 'a', [], true), 'void (*a)()');
+      });
+      it('int (*a)(int, int)', function() {
+        assert.equal(tcc._func_decl('int', 'a', ['int', 'int'], true), 'int (*a)(int , int )');
+      });
+      it('int* (*a)(char*)', function() {
+        assert.equal(tcc._func_decl('int*', 'a', ['char*'], true), 'int* (*a)(char (*))');
+      });
+      it('int** (*a)(char**, char**)', function() {
+        assert.equal(tcc._func_decl('int**', 'a', ['char**', 'char**'], true),
+            'int** (*a)(char (*(*)), char (*(*)))');
+      });
+      it('struct T* (*a)(struct T)', function() {
+        let T = tcc.c_struct('T', StructType());
+        assert.equal(tcc._func_decl(ref.refType(T), 'a', [T], true),
+            'struct T* (*a)(struct T )');
+      });
+      it('void (*a)(struct T**)', function() {
+        let T = tcc.c_struct('T', StructType());
+        assert.equal(tcc._func_decl('void', 'a', [ref.refType(ref.refType(T))], true),
+            'void (*a)(struct T (*(*)))');
+      });
+      it('struct T** (*test)(struct T *(*[5])[10])', function() {
+        let T = tcc.c_struct('T', StructType({a: 'int'}));
+        let A1 = ArrayType(ref.refType(T), 10);
+        let A2 = ArrayType(ref.refType(A1), 5);
+        assert.equal(tcc._func_decl(ref.refType(ref.refType(T)), 'test', [A2], true),
+            'struct T** (*test)(struct T (*((*([5]))[10])))');
       });
   });
   describe('struct tests', function() {
@@ -221,7 +274,7 @@ describe('TCC tests', function() {
       s = state.resolveSymbol('s', S);
       assert.equal(s.a, 999);
     });
-    it('struct as parameter', function() {
+    it('struct as c_parameter', function() {
       let gen = tcc.InlineGenerator();
       let S = tcc.c_struct('S', StructType({a: 'int'}));
       gen.add_declaration(S);
@@ -232,7 +285,7 @@ describe('TCC tests', function() {
       gen.bind_state(state);
       assert.equal(add(S({a: 23}), S({a: 42})), 65);
     });
-    it('struct pointer as function parameter', function() {
+    it('struct pointer as c_function parameter', function() {
       let gen = tcc.InlineGenerator();
       let S = tcc.c_struct('S', StructType({a: 'int'}));
       gen.add_declaration(S);
@@ -244,7 +297,7 @@ describe('TCC tests', function() {
       let s = S({a: 23});
       assert.equal(add(s.ref(), S({a: 42})), 65);
     });
-    it('struct as function return value', function() {
+    it('struct as c_function return value', function() {
       let gen = tcc.InlineGenerator();
       let S = tcc.c_struct('S', StructType({a: 'int'}));
       gen.add_declaration(S);
@@ -257,7 +310,7 @@ describe('TCC tests', function() {
       assert.equal(result instanceof S, true);
       assert.equal(result.a, 65);
     });
-    it('struct pointer as function return value', function() {
+    it('struct pointer as c_function return value', function() {
       let gen = tcc.InlineGenerator();
       let S = tcc.c_struct('S', StructType({a: 'int'}));
       gen.add_declaration(S);
@@ -271,6 +324,48 @@ describe('TCC tests', function() {
       let result = add(s.ref(), S({a: 42}));
       assert.equal(result.deref() instanceof S, true);
       assert.equal(result.deref().a, 65);
+    });
+    it('struct as c_callable return value', function() {
+      let gen = tcc.InlineGenerator();
+      let S = tcc.c_struct('S', StructType({a: 'int'}));
+      gen.add_declaration(S);
+      let obj = new S({a: 123});
+      let js_func = function() { return obj; };
+      let fromJS = tcc.c_callable(S, 'js_func', [], js_func);
+      gen.add_declaration(fromJS);
+      let use = tcc.c_function(S, 'use', [], 'return js_func();');
+      gen.add_declaration(use);
+      state.compile(gen.code());
+      state.relocate();
+      gen.bind_state(state);
+      let result = use();
+      assert.equal(result instanceof S, true);
+      assert.equal(result.a, 123);
+    });
+    it('struct pointer as c_callable return value', function() {
+      let gen = tcc.InlineGenerator();
+      let S = tcc.c_struct('S', StructType({a: 'int'}));
+      gen.add_declaration(S);
+      let obj = new S({a: 123});
+      let js_func = function() { return obj.ref(); };
+      let fromJS = tcc.c_callable(ref.refType(S), 'js_func', [], js_func);
+      gen.add_declaration(fromJS);
+      let use = tcc.c_function(ref.refType(S), 'use', [],
+      `
+        // change value of a
+        struct S *obj = js_func();
+        obj->a = 999;
+        return obj;
+      `
+      );
+      gen.add_declaration(use);
+      state.compile(gen.code());
+      state.relocate();
+      gen.bind_state(state);
+      let result = use();
+      assert.equal(result.deref() instanceof S, true);
+      assert.equal(result.deref().a, 999);
+      assert.equal(result.address(), obj.ref().address());
     });
     it('alignment', function() {
       let gen = tcc.InlineGenerator();
@@ -343,14 +438,15 @@ describe('TCC tests', function() {
       let s = state.resolveSymbol('s', S);
       assert.deepEqual(s.a.toArray(), [1, 2, 3]);
     });
-    /* NOT WORKING - bug in ref-array?
     it('array pointer in struct', function() {
-      let state = tcc.DefaultTcc();
       let gen = tcc.InlineGenerator();
-      let A = ArrayType('int');
+      let A = ArrayType('int', 3);
       let S = tcc.c_struct('S', StructType({a: ref.refType(A)}));
+      gen.add_declaration(S);
+      assert.equal(S.declaration.code(),
+          'struct __attribute__((aligned(8))) S {\n  int ((*a)[3]);\n};');
     });
-    */
+    /**/
   });
   describe('satisfy coverage', function() {
     it('add illegal declaration', function() {

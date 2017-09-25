@@ -147,6 +147,13 @@ function CFuncType(restype, args) {
 }
 
 /**
+ * Wrapper of ffi.Callback to distingish a function type in `bind_state`.
+ */
+function FuncSymbol(restype, args, f) {
+    this.cb = ffi.Callback(restype, args, f);
+}
+
+/**
  * Create a C code object to be used with InlineGenerator.
  */
 function Declaration(code, forward, symbols) {
@@ -229,44 +236,29 @@ InlineGenerator.prototype.bind_state = function(state) {
 };
 
 /**
- * Wrapper of ffi.Callback to distingish a function type in `bind_state`.
+ * Helper function to create c declarations.
  */
-function FuncSymbol(restype, args, f) {
-  this.cb = ffi.Callback(restype, args, f);
-}
-
-/**
- * Convenvient function to import a function symbol from JS to C code.
- */
-function c_callable(restype, name, args, f) {
-  return new Declaration(
-    '',
-    `${restype} (*${name})(${args.join(', ')}) = 0;`,
-    [[new FuncSymbol(restype, args, f), name]]
-  );
-}
-
+// build postfix token list
 function _postfix(res, type) {
-    type = ref.coerceType(type);
-    let typename = type.name;
-    while (typename.endsWith('*')) {
-      res.push('*');
-      typename = typename.slice(0, -1);
-    }
-    if (typename === 'StructType') {
-        if (!type.prototype._name)
-            throw new Error('unkown C name for type '+ typename);
-        res.push(`struct ${type.prototype._name}`);
-    } else if (typename === 'ArrayType') {
-        res.push(`${'['+ (type.fixedLength || '') +']'}`);
-        _postfix(res, type.type);
-    } else
-      res.push(typename);
-    return res;
+  type = ref.coerceType(type);
+  let typename = type.name;
+  while (typename.endsWith('*')) {
+    res.push('*');
+    typename = typename.slice(0, -1);
+  }
+  if (typename === 'StructType') {
+    if (!type.prototype._name)
+      throw new Error('unkown C name for type '+ typename);
+    res.push(`struct ${type.prototype._name}`);
+  } else if (typename === 'ArrayType') {
+    res.push(`${'['+ (type.fixedLength || '') +']'}`);
+    _postfix(res, type.type);
+  } else
+    res.push(typename);
+  return res;
 }
-
-// create full c declaration for parameters and struct members
-function _cdecl(varname, type) {
+// create c declarations for parameters and struct members
+function _var_decl(varname, type) {
   let pf = _postfix([varname], type);
   let s = pf.shift();
   while (pf.length > 1) {
@@ -279,29 +271,47 @@ function _cdecl(varname, type) {
   }
   return `${pf.shift()} ${s}`;
 }
-
-// helper to resolve C names for restype
+// construct function declarations
+function _func_decl(restype, name, args, pointer=false) {
+  let vars = '';
+  if (args.length)
+    vars = (args[0] instanceof Array)
+        ? args.map(([type, varname]) => _var_decl(varname, type)).join(', ')
+        : args.map((type) => _var_decl('', type)).join(', ');
+  return `${_restype(restype)} ` + ((pointer) ? `(*${name})` : name) + `(${vars})`;
+}
+// resolve C names for restype
 function _restype(type) {
-    type = ref.coerceType(type);
-    let typename = type.name;
-    if (typename.startsWith('StructType')) {
-        if (!type.prototype._name)
-            throw new Error('unkown C name for type '+ type);
-        typename = `struct ${typename.replace('StructType', type.prototype._name)}`;
-    } else if (typename.startsWith('ArrayType')) {
-        throw new Error('ArrayType not allowed as restype');
-    }
-    return typename;
+  type = ref.coerceType(type);
+  let typename = type.name;
+  if (typename.startsWith('StructType')) {
+    if (!type.prototype._name)
+      throw new Error('unkown C name for type '+ type);
+    typename = `struct ${typename.replace('StructType', type.prototype._name)}`;
+  } else if (typename.startsWith('ArrayType')) {
+    throw new Error('ArrayType not allowed as restype');
+  }
+  return typename;
+}
+
+/**
+ * Convenvient function to import a function symbol from JS to C code.
+ */
+function c_callable(restype, name, args, f) {
+  return new Declaration(
+    '',
+    _func_decl(restype, name, args, true) + ' = 0;',
+    [[new FuncSymbol(restype, args, f), name]]
+  );
 }
 
 /**
  * Convenient function to create a C function useable from JS.
  */
 function c_function(restype, name, args, code) {
-  let header = `${_restype(restype)} ${name}`;
-  header += `(${args.map(([type, varname]) => _cdecl(varname, type)).join(', ')})`;
+  let header = _func_decl(restype, name, args);
   let declaration = new Declaration(
-    header + `\n{\n${code}\n}\n`,
+    `${header}\n{\n${code}\n}\n`,
     header + ';',
     [[CFuncType(restype, args.map(([type, _]) => type)), name]]
   );
@@ -329,7 +339,7 @@ function c_struct(name, structType) {
       });
       let members = fields.map(
         // FIXME: need to declare member alignment?
-        (el) => `  ${_cdecl(el, structType.fields[el].type)};`
+        (el) => `  ${_var_decl(el, structType.fields[el].type)};`
       ).join('\n');
       return `struct __attribute__((aligned(${structType.alignment}))) ${name} {\n${members}\n};`;
     },
@@ -347,4 +357,5 @@ module.exports.Declaration = Declaration;
 module.exports.c_function = c_function;
 module.exports.c_callable = c_callable;
 module.exports.c_struct = c_struct;
-module.exports._cdecl = _cdecl;
+module.exports._var_decl = _var_decl;
+module.exports._func_decl = _func_decl;

@@ -7,5 +7,5 @@ mkdir lib_build
 cd lib_build
 ../tinycc/configure --prefix=../posix --extra-cflags="-fPIC"
 make all
-make test
+#make test
 make install

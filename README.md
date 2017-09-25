@@ -2,7 +2,7 @@ Run inline C code on the fly.
 
 Tested on:
 
-- Linux with nodejs 6.11 64 bit, gcc 4.8
+- Linux with nodejs 6.11 64 bit, (gcc 4.8 on x86, gcc 6.3 on ARM)
 - Windows 10 with nodejs 6.11 32 and 64 bit
 - OSX 10.10 with nodejs 6.10, llvm 3.5 (Cave! TCC is not fully
 ported to OSX, support is experimental!)
