@@ -105,11 +105,30 @@ describe('TCC tests', function() {
       gen.add_declaration(decl1);
       gen.add_declaration(decl2);
       gen.add_topdeclaration(tcc.Declaration('#include <stdio.h>'));
-      let expected = '';
-      expected += '/* top */\n#include <stdio.h>\n';
-      expected += '\n/* forward */\nint test1;\nfloat test2;\n';
-      expected += '\n/* code */\nint test1 = 123;\nfloat test2 = 1.23;\n';
+      let expected = `/* top */
+#include <stdio.h>
+
+/* forward */
+int test1;
+float test2;
+
+/* code */
+int test1 = 123;
+float test2 = 1.23;
+`;
       assert.equal(gen.code(), expected);
+      let withLineNumber = ` 1: /* top */
+ 2: #include <stdio.h>
+ 3: 
+ 4: /* forward */
+ 5: int test1;
+ 6: float test2;
+ 7: 
+ 8: /* code */
+ 9: int test1 = 123;
+10: float test2 = 1.23;
+11: `;
+      assert.equal(gen.codeWithLineNumbers(), withLineNumber);
     });
     it('resolve symbol from declaration', function(){
       let decl = tcc.Declaration(

@@ -38,6 +38,7 @@ try {
    * Example: `wchar_t *w = L"${escape_wchar('öäü')}";`
    */
   module.exports.escape_wchar = function(s) {
+    /* istanbul ignore next */
     let AR = (wchar_t.size === 2) ? Uint16Array : Uint32Array;
     return [...new AR(new Uint8Array(wchar_set(s)).buffer)].map(
       (el) => '\\x' + el.toString(16)
@@ -240,6 +241,7 @@ typedef unsigned int uint;
 typedef unsigned long ulong;
 typedef long long longlong;
 typedef unsigned long long ulonglong;`));
+  /* istanbul ignore else */
   if (wchar_t)
     this.add_topdeclaration(new Declaration('typedef wchar_t* WCString;'));
 };
@@ -264,10 +266,10 @@ InlineGenerator.prototype.code = function() {
  * Get C code with line numbers.
  */
 InlineGenerator.prototype.codeWithLineNumbers = function() {
-  let src = this.code().split('\n');
-  let depth = Math.ceil(Math.log10(99));
+  let lines = this.code().split('\n');
+  let depth = Math.ceil(Math.log10(lines.length));
   let prepend = Array(depth).join(' ');
-  return src.map((line, idx) => `${(prepend+idx).slice(-depth)}: ${line}`).join('\n');
+  return lines.map((line, idx) => `${(prepend+(idx+1)).slice(-depth)}: ${line}`).join('\n');
 };
 
 /**
