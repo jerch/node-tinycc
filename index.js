@@ -3,8 +3,47 @@
 const ffi = require('ffi');
 const ref = require('ref');
 const path = require('path');
-const StructType = require('ref-struct');
-const ArrayType = require('ref-array');
+
+// optional wchar_t support
+let wchar_t = null;
+try {
+  wchar_t = require('ref-wchar');
+  const Iconv = require('iconv').Iconv;
+  const wchar_set = new Iconv('UTF-8', 'WCHAR_T').convert;
+  const wchar_get = new Iconv('WCHAR_T', 'UTF-8').convert;
+
+  // monkey patch broken wchar_t.toString
+  wchar_t.toString = (buffer) => {
+    if (!buffer)
+      return '[wchar_t]';
+    return wchar_get(buffer).toString('utf8');
+  };
+
+  // add wchar types to type system
+  ref.types.wchar_t = wchar_t;
+  ref.types.WCString = wchar_t.string;
+  ref.types.wstring = wchar_t.string;
+
+  /**
+   * Helper function for easy wide string creation.
+   */
+  module.exports.WCString = function(s) {
+    let buf = wchar_set(s + '\0');
+    buf.type = wchar_t.string;
+    return buf;
+  };
+
+  /**
+   * Helper to escape wide character string literals in source code.
+   * Example: `wchar_t *w = L"${escape_wchar('öäü')}";`
+   */
+  module.exports.escape_wchar = function(s) {
+    let AR = (wchar_t.size === 2) ? Uint16Array : Uint32Array;
+    return [...new AR(new Uint8Array(wchar_set(s)).buffer)].map(
+      (el) => '\\x' + el.toString(16)
+    ).join('');
+  };
+} catch (e) {}
 
 let Tcc = null;
 
@@ -177,6 +216,35 @@ function InlineGenerator() {
 }
 
 /**
+ * Define basic types from ref module.
+ * The `Object` type is typed as void pointer.
+ */
+InlineGenerator.prototype.loadBasicTypes = function() {
+  this.add_topdeclaration(
+      new Declaration('#include <stddef.h>\n#include <stdint.h>\n#include <stdbool.h>'));
+  this.add_topdeclaration(
+      new Declaration(`typedef int8_t int8;
+typedef int16_t int16;
+typedef int32_t int32;
+typedef int64_t int64;
+typedef uint8_t uint8;
+typedef uint16_t uint16;
+typedef uint32_t uint32;
+typedef uint64_t uint64;
+typedef void* Object;
+typedef char* CString;
+typedef unsigned char byte;
+typedef unsigned char uchar;
+typedef unsigned short ushort;
+typedef unsigned int uint;
+typedef unsigned long ulong;
+typedef long long longlong;
+typedef unsigned long long ulonglong;`));
+  if (wchar_t)
+    this.add_topdeclaration(new Declaration('typedef wchar_t* WCString;'));
+};
+
+/**
  * Get C code of added declarations.
  */
 InlineGenerator.prototype.code = function() {
@@ -190,6 +258,16 @@ InlineGenerator.prototype.code = function() {
     '/* forward */', forward, '',
     '/* code */', code, ''
   ].join('\n');
+};
+
+/**
+ * Get C code with line numbers.
+ */
+InlineGenerator.prototype.codeWithLineNumbers = function() {
+  let src = this.code().split('\n');
+  let depth = Math.ceil(Math.log10(99));
+  let prepend = Array(depth).join(' ');
+  return src.map((line, idx) => `${(prepend+idx).slice(-depth)}: ${line}`).join('\n');
 };
 
 /**

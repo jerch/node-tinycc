@@ -41,13 +41,27 @@ private:
     TCC() {
         state = tcc_new();
         tcc_set_output_type(state, 1);
-#if defined(__APPLE__)
+
+        /*
+         * NOTE on OSX: dylib loading is not supported yet
+         * any code with foreign libs will fail
+         * we cant even load the clib (got loaded anyways, so symbols will work)
+         */
+        #if defined(__APPLE__)
         tcc_set_options(state, "-nostdlib");
-#endif
+        #endif
     }
-    ~TCC() {
-        tcc_delete(state);
-    }
+
+    /*
+     * destructor disabled for now:
+     * We cant delete the compile state since we dont know
+     * whether all JS objects pointing to this memory got cleaned up yet.
+     * This will leak memory over time when compiling over and over!
+     * Solution - avoid recompiling, instead compile once and reuse symbols.
+     */
+    //~TCC() {
+    //    tcc_delete(state);
+    //}
     static Nan::Persistent<FunctionTemplate>& tmpl() {
         static Nan::Persistent<FunctionTemplate> my_template;
         return my_template;

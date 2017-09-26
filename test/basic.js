@@ -3,6 +3,7 @@ const ffi = require('ffi');
 const ref = require('ref');
 const StructType = require('ref-struct');
 const ArrayType = require('ref-array');
+const wchar_t = require('ref-wchar');
 const assert = require('assert');
 
 describe('TCC tests', function() {
@@ -10,6 +11,7 @@ describe('TCC tests', function() {
     let state;
     beforeEach(function(){
       state = tcc.DefaultTcc();
+      state.setOptions('-Wall');
     });
     it('compile & run', function(){
       state.compile('int main(int argc, char *argv[]) {return 123;}');
@@ -62,7 +64,40 @@ describe('TCC tests', function() {
     let gen;
     beforeEach(function(){
       state = tcc.DefaultTcc();
+      state.setOptions('-Wall');
       gen = tcc.InlineGenerator();
+    });
+    it('support basic types from ref module', function() {
+      gen.loadBasicTypes();
+      let code = '';
+      code +='void foo(void) {};';
+      code +='int8      a;';
+      code +='uint8     b;';
+      code +='int16     c;';
+      code +='uint16    d;';
+      code +='int32     e;';
+      code +='uint32    f;';
+      code +='int64     g;';
+      code +='uint64    h;';
+      code +='float     i;';
+      code +='double    j;';
+      code +='Object    k;';
+      code +='CString   l;';
+      code +='bool      m;';
+      code +='byte      n;';
+      code +='char      o;';
+      code +='uchar     p;';
+      code +='short     q;';
+      code +='ushort    r;';
+      code +='int       s;';
+      code +='uint      t;';
+      code +='long      u;';
+      code +='ulong     v;';
+      code +='longlong  w;';
+      code +='ulonglong x;';
+      code +='size_t    y;';
+      gen.add_declaration(tcc.Declaration(code));
+      assert.equal(state.compile(gen.code()), 0);
     });
     it('add declaration', function(){
       let decl1 = tcc.Declaration('int test1 = 123;', 'int test1;');
@@ -229,6 +264,7 @@ describe('TCC tests', function() {
     let state;
     beforeEach(function(){
       state = tcc.DefaultTcc();
+      state.setOptions('-Wall');
     });
     it('declare simple struct', function() {
       let S = tcc.c_struct('S', StructType({a: 'int'}));
@@ -369,12 +405,8 @@ describe('TCC tests', function() {
     });
     it('alignment', function() {
       let gen = tcc.InlineGenerator();
-      gen.add_topdeclaration(tcc.Declaration('#include <stdint.h>'));
+      gen.loadBasicTypes();
       gen.add_topdeclaration(tcc.Declaration('#include <string.h>'));
-      gen.add_topdeclaration(tcc.Declaration('typedef int8_t int8;'));
-      gen.add_topdeclaration(tcc.Declaration('typedef int16_t int16;'));
-      gen.add_topdeclaration(tcc.Declaration('typedef int32_t int32;'));
-      gen.add_topdeclaration(tcc.Declaration('typedef int64_t int64;'));
       let A = ArrayType('char', 20);
       let S = tcc.c_struct('S', StructType({
         a: 'int8',
@@ -411,6 +443,7 @@ describe('TCC tests', function() {
   describe('array tests', function() {
     it('resolve and set array elements', function() {
       let state = tcc.DefaultTcc();
+      state.setOptions('-Wall');
       state.compile('int test[5] = {0, 1, 2, 3, 4};');
       state.relocate();
       let A = ArrayType('int', 5);
@@ -426,6 +459,7 @@ describe('TCC tests', function() {
     });
     it('array in struct', function() {
       let state = tcc.DefaultTcc();
+      state.setOptions('-Wall');
       let gen = tcc.InlineGenerator();
       let A = ArrayType('int', 3);
       let S = tcc.c_struct('S', StructType({a: A}));
@@ -446,7 +480,95 @@ describe('TCC tests', function() {
       assert.equal(S.declaration.code(),
           'struct __attribute__((aligned(8))) S {\n  int ((*a)[3]);\n};');
     });
-    /**/
+  });
+  describe('wchar_t support (optional)', function() {
+    let state;
+    let gen;
+    beforeEach(function(){
+      state = tcc.DefaultTcc();
+      state.setOptions('-Wall');
+      gen = tcc.InlineGenerator();
+    });
+    it('wchar types in ref.types', function() {
+      assert.equal(ref.types.wchar_t.name, 'wchar_t');
+      assert.equal(ref.types.WCString.name, 'WCString');
+      assert.equal(ref.coerceType('wstring'), ref.types.WCString);
+    });
+    it('WCString creation', function() {
+      let ws = tcc.WCString('ümläüts with €');
+      assert.equal(wchar_t.toString(ws), 'ümläüts with €\0');
+    });
+    it('get and set wchar_t symbol', function() {
+      state.compile('#include <wchar.h>\nwchar_t w = L\'a\';');
+      state.relocate();
+      let w = state.resolveSymbol('w', 'wchar_t');
+      assert.equal(w.deref(), 'a');
+      state.setSymbol('w', ref.alloc('wchar_t', '€'));
+      assert.equal(w.deref(), '€');
+    });
+    it('get wchar_t* symbol', function() {
+      state.compile('#include <wchar.h>\nwchar_t w[] = L"wide chars!";');
+      state.relocate();
+      let w1 = state.resolveSymbol('w', 'WCString');
+      assert.equal(wchar_t.toString(w1.reinterpretUntilZeros(wchar_t.size)), 'wide chars!');
+      let w2 = state.resolveSymbol('w', 'wchar_t*');
+      assert.equal(wchar_t.toString(w2.reinterpretUntilZeros(wchar_t.size)), 'wide chars!');
+    });
+    it('escape wchar literals in source', function() {
+      state.compile('#include <wchar.h>\nwchar_t w[] = L"'+ tcc.escape_wchar('ümläüts€') + '";');
+      state.relocate();
+      let w1 = state.resolveSymbol('w', 'WCString');
+      assert.equal(wchar_t.toString(w1.reinterpretUntilZeros(wchar_t.size)), 'ümläüts€');
+      let w2 = state.resolveSymbol('w', 'wchar_t*');
+      assert.equal(wchar_t.toString(w2.reinterpretUntilZeros(wchar_t.size)), 'ümläüts€');
+    });
+    it('wchar_t* as parameter', function() {
+      gen.add_topdeclaration(tcc.Declaration('#include <wchar.h>'));
+      let func = tcc.c_function('int', 'func', [['wchar_t*', 'ws']], 'return wcslen(ws);');
+      gen.add_declaration(func);
+      state.compile(gen.code());
+      state.relocate();
+      gen.bind_state(state);
+      assert.equal(func(tcc.WCString('ümläüts€')), 8);
+    });
+    it('wchar_t* as return value', function() {
+      gen.add_topdeclaration(tcc.Declaration('#include <wchar.h>'));
+      let func = tcc.c_function('wchar_t*', 'func', [],
+        `
+        static wchar_t *ws = L"${tcc.escape_wchar('ümläüts€')}";
+        return ws;
+        `
+      );
+      gen.add_declaration(func);
+      state.compile(gen.code());
+      state.relocate();
+      gen.bind_state(state);
+      let result = func();
+      assert.equal(wchar_t.toString(result.reinterpretUntilZeros(wchar_t.size)), 'ümläüts€');
+    });
+    it('wchar_t in struct', function() {
+      let S = StructType({a: 'wchar_t', b: ArrayType('wchar_t', 5), c: ref.refType('wchar_t')});
+      let Sc = tcc.c_struct('S', S);
+        assert.equal(Sc.declaration.code(),
+`struct __attribute__((aligned(8))) S {
+  wchar_t a;
+  wchar_t (b[5]);
+  wchar_t (*c);
+};`);
+    });
+    it('WCString & wstring', function() {
+      // WCString gets typedef'd in loadBasicTypes
+      gen.loadBasicTypes();
+      gen.add_declaration(tcc.Declaration('WCString w = L"first";'));
+      state.compile(gen.code());
+      state.relocate();
+      let w1 = state.resolveSymbol('w', 'wchar_t*');
+      assert.equal(wchar_t.toString(w1.deref().reinterpretUntilZeros(wchar_t.size)), 'first');
+      let w2 = state.resolveSymbol('w', 'wstring');
+      assert.equal(w2.deref(), 'first');
+      let w3 = state.resolveSymbol('w', 'WCString');
+      assert.equal(w3.deref(), 'first');
+    });
   });
   describe('satisfy coverage', function() {
     it('add illegal declaration', function() {
@@ -461,6 +583,7 @@ describe('TCC tests', function() {
     it('multiple bind_state calls return same symbols map', function() {
       let gen = tcc.InlineGenerator();
       let state = tcc.DefaultTcc();
+      state.setOptions('-Wall');
       let S = tcc.c_struct('S', StructType({a: 'int'}));
       gen.add_declaration(S);
       let add = tcc.c_function('int', 'add', [[S, 'a'], [S, 'b']], 'return a.a + b.a;');
