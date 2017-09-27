@@ -11,7 +11,8 @@ ported to OSX, support is experimental!)
 
 - inline C functions in JS
 - JS callbacks in C
-- struct and array support
+- wchar_t, struct and array support
+- async compilation support
 
 ### Usage
 

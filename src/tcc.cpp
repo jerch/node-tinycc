@@ -8,6 +8,39 @@ void bfree(char *data, void *hint) {
     // never free stuff from relocated TCCState code
 }
 
+struct Work {
+    Nan::Persistent<v8::Function> cb;
+    uv_work_t work;
+    TCCState *state;
+    uv_rwlock_t *lock;
+    int result;
+    const char *data;
+};
+void compile(uv_work_t* req);
+void after_compile(uv_work_t* req, int status);
+
+
+void compile(uv_work_t* req) {
+    Work *w = static_cast<Work *>(req->data);
+    uv_rwlock_wrlock(w->lock);
+    w->result = tcc_compile_string(w->state, w->data);
+    uv_rwlock_wrunlock(w->lock);
+}
+
+void after_compile(uv_work_s* req, int status) {
+    Nan::HandleScope scope;
+    Work *w = static_cast<Work *>(req->data);
+    v8::Local<v8::Value> argv[] = {
+        Nan::New<v8::Integer>(w->result),
+        Nan::New<v8::Integer>(status),
+    };
+    v8::Local<v8::Function> cb = Nan::New<v8::Function>(w->cb);
+    w->cb.Reset();
+    delete [] w->data;
+    delete w;
+    Nan::Callback(cb).Call(Nan::GetCurrentContext()->Global(), 2, argv);
+}
+
 class TCC : public Nan::ObjectWrap {
 public:
     static Local<FunctionTemplate> init() {
@@ -26,6 +59,7 @@ public:
         Nan::SetPrototypeMethod(tpl, "addFile", AddFile);
         Nan::SetPrototypeMethod(tpl, "compileString", CompileString);
         Nan::SetPrototypeMethod(tpl, "compile", CompileString);
+        Nan::SetPrototypeMethod(tpl, "compileAsync", CompileStringAsync);
         Nan::SetPrototypeMethod(tpl, "relocate", Relocate);
         Nan::SetPrototypeMethod(tpl, "addSymbol", AddSymbol);
         Nan::SetPrototypeMethod(tpl, "getSymbol", GetSymbol);
@@ -50,6 +84,8 @@ private:
         #if defined(__APPLE__)
         tcc_set_options(state, "-nostdlib");
         #endif
+
+        uv_rwlock_init(&lock);
     }
 
     /*
@@ -59,9 +95,10 @@ private:
      * This will leak memory over time when compiling over and over!
      * Solution - avoid recompiling, instead compile once and reuse symbols.
      */
-    //~TCC() {
+    ~TCC() {
     //    tcc_delete(state);
-    //}
+        uv_rwlock_destroy(&lock);
+    }
     static Nan::Persistent<FunctionTemplate>& tmpl() {
         static Nan::Persistent<FunctionTemplate> my_template;
         return my_template;
@@ -85,94 +122,137 @@ private:
     }
     static NAN_METHOD(SetLibPath) {
         TCC *obj = Nan::ObjectWrap::Unwrap<TCC>(info.Holder());
+        uv_rwlock_wrlock(&obj->lock);
         tcc_set_lib_path(obj->state, *String::Utf8Value(info[0]->ToString()));
+        uv_rwlock_wrunlock(&obj->lock);
         info.GetReturnValue().SetUndefined();
     }
     static NAN_METHOD(SetOptions) {
         TCC *obj = Nan::ObjectWrap::Unwrap<TCC>(info.Holder());
+        uv_rwlock_wrlock(&obj->lock);
         tcc_set_options(obj->state, *String::Utf8Value(info[0]->ToString()));
+        uv_rwlock_wrunlock(&obj->lock);
         info.GetReturnValue().SetUndefined();
     }
     static NAN_METHOD(DefineSymbol) {
         TCC *obj = Nan::ObjectWrap::Unwrap<TCC>(info.Holder());
+        uv_rwlock_wrlock(&obj->lock);
         tcc_define_symbol(
             obj->state,
             *String::Utf8Value(info[0]->ToString()),
             *String::Utf8Value(info[1]->ToString())
         );
+        uv_rwlock_wrunlock(&obj->lock);
         info.GetReturnValue().SetUndefined();
     }
     static NAN_METHOD(UndefineSymbol) {
         TCC *obj = Nan::ObjectWrap::Unwrap<TCC>(info.Holder());
+        uv_rwlock_wrlock(&obj->lock);
         tcc_undefine_symbol(
             obj->state,
             *String::Utf8Value(info[0]->ToString())
         );
+        uv_rwlock_wrunlock(&obj->lock);
         info.GetReturnValue().SetUndefined();
     }
     static NAN_METHOD(AddIncludePath) {
         TCC *obj = Nan::ObjectWrap::Unwrap<TCC>(info.Holder());
+        uv_rwlock_wrlock(&obj->lock);
         int res = tcc_add_include_path(
             obj->state,
             *String::Utf8Value(info[0]->ToString())
         );
+        uv_rwlock_wrunlock(&obj->lock);
         info.GetReturnValue().Set(Nan::New<Number>(res));
     }
     static NAN_METHOD(AddLibrary) {
         TCC *obj = Nan::ObjectWrap::Unwrap<TCC>(info.Holder());
+        uv_rwlock_wrlock(&obj->lock);
         int res = tcc_add_library(
             obj->state,
             *String::Utf8Value(info[0]->ToString())
         );
+        uv_rwlock_wrunlock(&obj->lock);
         info.GetReturnValue().Set(Nan::New<Number>(res));
     }
     static NAN_METHOD(AddLibraryPath) {
         TCC *obj = Nan::ObjectWrap::Unwrap<TCC>(info.Holder());
+        uv_rwlock_wrlock(&obj->lock);
         int res = tcc_add_library_path(
             obj->state,
             *String::Utf8Value(info[0]->ToString())
         );
+        uv_rwlock_wrunlock(&obj->lock);
         info.GetReturnValue().Set(Nan::New<Number>(res));
     }
     static NAN_METHOD(AddFile) {
         TCC *obj = Nan::ObjectWrap::Unwrap<TCC>(info.Holder());
+        uv_rwlock_wrlock(&obj->lock);
         int res = tcc_add_file(
             obj->state,
             *String::Utf8Value(info[0]->ToString())
         );
+        uv_rwlock_wrunlock(&obj->lock);
         info.GetReturnValue().Set(Nan::New<Number>(res));
     }
     static NAN_METHOD(CompileString) {
         TCC *obj = Nan::ObjectWrap::Unwrap<TCC>(info.Holder());
+        uv_rwlock_wrlock(&obj->lock);
         int res = tcc_compile_string(
             obj->state,
             *String::Utf8Value(info[0]->ToString())
         );
+        uv_rwlock_wrunlock(&obj->lock);
         info.GetReturnValue().Set(Nan::New<Number>(res));
+    }
+    static NAN_METHOD(CompileStringAsync) {
+        TCC *obj = Nan::ObjectWrap::Unwrap<TCC>(info.Holder());
+
+        // copy string over for consumption in thread
+        int length = info[0]->ToString()->Utf8Length();
+        char *p = new char[length+1];
+        p[length] = '\0';
+        memcpy(p, (char *) *String::Utf8Value(info[0]->ToString()), length);
+
+        // create work item and run work threaded
+        struct Work *w = new Work();
+        w->cb.Reset(v8::Local<v8::Function>::Cast(info[1]));
+        w->work.data = w;
+        w->state = obj->state;
+        w->lock = &obj->lock;
+        w->data = p;
+        uv_queue_work(uv_default_loop(), &w->work, compile, after_compile);
+        info.GetReturnValue().SetUndefined();
     }
     static NAN_METHOD(Relocate) {
         TCC *obj = Nan::ObjectWrap::Unwrap<TCC>(info.Holder());
+        uv_rwlock_wrlock(&obj->lock);
         int res = tcc_relocate(
             obj->state,
             TCC_RELOCATE_AUTO
         );
+        uv_rwlock_wrunlock(&obj->lock);
         info.GetReturnValue().Set(Nan::New<Number>(res));
     }
     static NAN_METHOD(AddSymbol) {
         TCC *obj = Nan::ObjectWrap::Unwrap<TCC>(info.Holder());
+        uv_rwlock_wrlock(&obj->lock);
         int res = tcc_add_symbol(
             obj->state,
             *String::Utf8Value(info[0]->ToString()),
             *String::Utf8Value(info[1]->ToString())
         );
+        uv_rwlock_wrunlock(&obj->lock);
         info.GetReturnValue().Set(Nan::New<Number>(res));
     }
     static NAN_METHOD(GetSymbol) {
         TCC *obj = Nan::ObjectWrap::Unwrap<TCC>(info.Holder());
+        uv_rwlock_wrlock(&obj->lock);
         void *res = tcc_get_symbol(
             obj->state,
             *String::Utf8Value(info[0]->ToString())
         );
+        uv_rwlock_wrunlock(&obj->lock);
         if (!res) {
             return Nan::ThrowError("symbol error");
         }
@@ -181,15 +261,18 @@ private:
     }
     static NAN_METHOD(Run) {
         TCC *obj = Nan::ObjectWrap::Unwrap<TCC>(info.Holder());
+        uv_rwlock_wrlock(&obj->lock);
         int res = tcc_run(
             obj->state,
             info[0]->IntegerValue(),
             NULL
         );
+        uv_rwlock_wrunlock(&obj->lock);
         info.GetReturnValue().Set(Nan::New<Number>(res));
     }
 
     TCCState *state = NULL;
+    uv_rwlock_t lock;
 };
 
 NAN_MODULE_INIT(init) {

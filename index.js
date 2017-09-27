@@ -398,7 +398,7 @@ function c_callable(restype, name, args, f) {
 function c_function(restype, name, args, code) {
   let header = _func_decl(restype, name, args);
   let declaration = new Declaration(
-    `${header}\n{\n${code}\n}\n`,
+    `${header}\n{\n${code||''}\n}\n`,
     header + ';',
     [[CFuncType(restype, args.map(([type, _]) => type)), name]]
   );

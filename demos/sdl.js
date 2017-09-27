@@ -1,7 +1,9 @@
 /**
  * The demo illustrates the usage of a foreign library with TCC (requires SDL2).
+ * It also shows ffi's capability to run the C function async while triggering
+ * a JS callback.
  */
-
+'use strict';
 const C_CODE = `
 #include <stdio.h>
 #include <SDL2/SDL.h>
@@ -46,7 +48,6 @@ void run_sdl(int width, int height) {
 `;
 
 const tcc = require('../index');
-
 let state = tcc.DefaultTcc();
 
 // link additional libraries
@@ -74,8 +75,17 @@ let set_callback = state.getFunction('set_callback', 'void', ['void*']);
 let run_sdl = state.getFunction('run_sdl', 'void', ['int', 'int']);
 
 // register callback
-set_callback(tcc.Callback('void', ['int', 'int', 'int'],
-    (r, g, b) => { console.log(`color is rgb(${r}, ${g}, ${b})`); }));
+let cb = tcc.Callback('void', ['int', 'int', 'int'],
+    (r, g, b) => console.log(`color is rgb(${r}, ${g}, ${b})`)
+);
+set_callback(cb);
 
-// call the C function
-run_sdl(640, 480);
+// call the C function asynchron
+let other_action = setInterval(() => {console.log('ASYNC!');}, 100);
+run_sdl.async(640, 480, (err, res) => {
+    console.log(err, res);
+    clearInterval(other_action);
+});
+
+// hold callback reference to avoid garbage collection
+process.on('exit', () => { cb });

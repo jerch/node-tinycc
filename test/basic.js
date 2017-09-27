@@ -40,8 +40,10 @@ describe('TCC tests', function() {
     it('resolve & run C function', function(){
       state.compile('int test(int a){return a+1;}');
       state.relocate();
-      let func = state.resolveSymbol('test', tcc.CFuncType('int', ['int']));
-      assert.equal(func(1), 2);
+      let func1 = state.resolveSymbol('test', tcc.CFuncType('int', ['int']));
+      assert.equal(func1(1), 2);
+      let func2 = state.getFunction('test', 'int', ['int']);
+      assert.equal(func2(1), 2);
     });
     it('resolve & run JS callback', function(){
       let code = '';
@@ -586,6 +588,28 @@ float test2 = 1.23;
       assert.equal(w2.deref(), 'first');
       let w3 = state.resolveSymbol('w', 'WCString');
       assert.equal(w3.deref(), 'first');
+    });
+  });
+  describe('async compilation', function() {
+    it('async test1', function(done) {
+      let state = tcc.DefaultTcc();
+      let gen = tcc.InlineGenerator();
+      // some declarations
+      let S = tcc.c_struct('S', StructType({a: 'int'}));
+      let inc = tcc.c_function('void', 'S_inc', [[ref.refType(S), 'this']], 'this->a++;');
+      gen.add_declaration(S);
+      gen.add_declaration(inc);
+      state.compileAsync(gen.code(), (res, err) => {
+        assert.equal(res, 0);
+        state.relocate();
+        gen.bind_state(state);
+        // some work
+        let s = new S({a: 0});
+        for (let i=0; i<100; ++i)
+          inc(s.ref());
+        assert.equal(s.a, 100);
+        done();
+      });
     });
   });
   describe('satisfy coverage', function() {
