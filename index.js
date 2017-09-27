@@ -153,6 +153,13 @@ Tcc.prototype.setSymbol = function(symbol, value) {
 };
 
 /**
+ * Get a C function as ForeignFunction.
+ */
+Tcc.prototype.getFunction = function(symbol, restype, args) {
+  return ffi.ForeignFunction(this.getSymbol(symbol), restype, args);
+};
+
+/**
  * Set a C function pointer symbol to ffi.Callback.
  */
 Tcc.prototype.setFunction = function(symbol, cb) {
@@ -218,7 +225,7 @@ function InlineGenerator() {
 
 /**
  * Define basic types from ref module.
- * The `Object` type is typed as void pointer.
+ * Note: The `Object` type is typed as void pointer.
  */
 InlineGenerator.prototype.loadBasicTypes = function() {
   this.add_topdeclaration(
@@ -303,7 +310,7 @@ InlineGenerator.prototype.bind_state = function(state) {
       for (let j=0; j<this.parts[i].symbols.length; ++j) {
         let sym = this.parts[i].symbols[j];
         if (sym[0] instanceof FuncSymbol) {
-          ref.set(state.resolveSymbol(sym[1], 'void *'), 0, sym[0].cb);
+          ref.set(state.resolveSymbol(sym[1], 'void*'), 0, sym[0].cb);
         } else {
           let resolved = state.resolveSymbol(sym[1], sym[0]);
           this.parts[i].symbols_resolved[sym[1]] = resolved;
@@ -331,7 +338,7 @@ function _postfix(res, type) {
       throw new Error('unkown C name for type '+ typename);
     res.push(`struct ${type.prototype._name}`);
   } else if (typename === 'ArrayType') {
-    res.push(`${'['+ (type.fixedLength || '') +']'}`);
+    res.push(`[${(type.fixedLength || '')}]`);
     _postfix(res, type.type);
   } else
     res.push(typename);
@@ -352,7 +359,7 @@ function _var_decl(varname, type) {
   return `${pf.shift()} ${s}`;
 }
 // construct function declarations
-function _func_decl(restype, name, args, pointer=false) {
+function _func_decl(restype, name, args, pointer) {
   let vars = '';
   if (args.length)
     vars = (args[0] instanceof Array)
@@ -432,6 +439,7 @@ function c_struct(name, structType) {
 module.exports.Tcc = Tcc;
 module.exports.DefaultTcc = DefaultTcc;
 module.exports.CFuncType = CFuncType;
+module.exports.Callback = ffi.Callback;
 module.exports.InlineGenerator = InlineGenerator;
 module.exports.Declaration = Declaration;
 module.exports.c_function = c_function;

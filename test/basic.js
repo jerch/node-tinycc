@@ -1,5 +1,4 @@
 const tcc = require('../index');
-const ffi = require('ffi');
 const ref = require('ref');
 const StructType = require('ref-struct');
 const ArrayType = require('ref-array');
@@ -55,7 +54,7 @@ describe('TCC tests', function() {
       assert.equal(func(), -1);
       state.setFunction(
           'callback',
-          ffi.Callback('int', ['int', 'int'], function(a, b) { return a+b; }));
+          tcc.Callback('int', ['int', 'int'], function(a, b) { return a+b; }));
       assert.equal(func(), 65);
     });
   });
