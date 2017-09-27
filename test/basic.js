@@ -66,7 +66,7 @@ describe('TCC tests', function() {
     beforeEach(function(){
       state = tcc.DefaultTcc();
       state.setOptions('-Wall');
-      gen = tcc.InlineGenerator();
+      gen = tcc.CodeGenerator();
     });
     it('support basic types from ref module', function() {
       gen.loadBasicTypes();
@@ -97,15 +97,15 @@ describe('TCC tests', function() {
       code +='longlong  w;';
       code +='ulonglong x;';
       code +='size_t    y;';
-      gen.add_declaration(tcc.Declaration(code));
+      gen.addDeclaration(tcc.Declaration(code));
       assert.equal(state.compile(gen.code()), 0);
     });
     it('add declaration', function(){
       let decl1 = tcc.Declaration('int test1 = 123;', 'int test1;');
       let decl2 = tcc.Declaration('float test2 = 1.23;', 'float test2;');
-      gen.add_declaration(decl1);
-      gen.add_declaration(decl2);
-      gen.add_topdeclaration(tcc.Declaration('#include <stdio.h>'));
+      gen.addDeclaration(decl1);
+      gen.addDeclaration(decl2);
+      gen.addTopDeclaration(tcc.Declaration('#include <stdio.h>'));
       let expected = `/* top */
 #include <stdio.h>
 
@@ -136,10 +136,10 @@ float test2 = 1.23;
           'int test1 = 123;\ndouble test2 = 1.23;',
           '',
           [['int', 'test1'], ['double', 'test2']]);
-      gen.add_declaration(decl);
+      gen.addDeclaration(decl);
       state.compile(gen.code());
       state.relocate();
-      let symbols = gen.bind_state(state);
+      let symbols = gen.bindState(state);
       assert.equal(symbols.test1.deref(), 123);
       assert.equal(symbols.test2.deref(), 1.23);
     });
@@ -159,21 +159,21 @@ float test2 = 1.23;
       `
       );
       assert.throws(function(){fibonacci(10);}, Error);
-      gen.add_declaration(fibonacci);
+      gen.addDeclaration(fibonacci);
       state.compile(gen.code());
       state.relocate();
-      gen.bind_state(state);
+      gen.bindState(state);
       assert.equal(fibonacci(10), 55);
     });
     it('JS function from C', function(){
       let add = function(a, b) { return a+b; };
       let fromJS = tcc.c_callable('int', 'add', ['int', 'int'], add);
-      gen.add_declaration(fromJS);
+      gen.addDeclaration(fromJS);
       let use = tcc.c_function('int', 'use', [['int', 'a'], ['int', 'b']], 'return add(a, b);');
-      gen.add_declaration(use);
+      gen.addDeclaration(use);
       state.compile(gen.code());
       state.relocate();
-      gen.bind_state(state);
+      gen.bindState(state);
       assert.equal(use(23, 42), 65);
     });
   });
@@ -318,10 +318,10 @@ float test2 = 1.23;
       assert.equal(s.a, 999);
     });
     it('generate, resolve and set struct member', function() {
-      let gen = tcc.InlineGenerator();
+      let gen = tcc.CodeGenerator();
       let S = tcc.c_struct('S', StructType({a: 'int'}));
-      gen.add_declaration(S);
-      gen.add_declaration(tcc.Declaration('struct S s = {123};'));
+      gen.addDeclaration(S);
+      gen.addDeclaration(tcc.Declaration('struct S s = {123};'));
       state.compile(gen.code());
       state.relocate();
       let s = state.resolveSymbol('s', S);
@@ -331,81 +331,81 @@ float test2 = 1.23;
       assert.equal(s.a, 999);
     });
     it('struct as c_parameter', function() {
-      let gen = tcc.InlineGenerator();
+      let gen = tcc.CodeGenerator();
       let S = tcc.c_struct('S', StructType({a: 'int'}));
-      gen.add_declaration(S);
+      gen.addDeclaration(S);
       let add = tcc.c_function('int', 'add', [[S, 'a'], [S, 'b']], 'return a.a + b.a;');
-      gen.add_declaration(add);
+      gen.addDeclaration(add);
       state.compile(gen.code());
       state.relocate();
-      gen.bind_state(state);
+      gen.bindState(state);
       assert.equal(add(S({a: 23}), S({a: 42})), 65);
     });
     it('struct pointer as c_function parameter', function() {
-      let gen = tcc.InlineGenerator();
+      let gen = tcc.CodeGenerator();
       let S = tcc.c_struct('S', StructType({a: 'int'}));
-      gen.add_declaration(S);
+      gen.addDeclaration(S);
       let add = tcc.c_function('int', 'add', [[ref.refType(S), 'a'], [S, 'b']], 'return a->a + b.a;');
-      gen.add_declaration(add);
+      gen.addDeclaration(add);
       state.compile(gen.code());
       state.relocate();
-      gen.bind_state(state);
+      gen.bindState(state);
       let s = S({a: 23});
       assert.equal(add(s.ref(), S({a: 42})), 65);
     });
     it('struct as c_function return value', function() {
-      let gen = tcc.InlineGenerator();
+      let gen = tcc.CodeGenerator();
       let S = tcc.c_struct('S', StructType({a: 'int'}));
-      gen.add_declaration(S);
+      gen.addDeclaration(S);
       let add = tcc.c_function(S, 'add', [[S, 'a'], [S, 'b']], 'return (struct S) {a.a + b.a};');
-      gen.add_declaration(add);
+      gen.addDeclaration(add);
       state.compile(gen.code());
       state.relocate();
-      gen.bind_state(state);
+      gen.bindState(state);
       let result = add(S({a: 23}), S({a: 42}));
       assert.equal(result instanceof S, true);
       assert.equal(result.a, 65);
     });
     it('struct pointer as c_function return value', function() {
-      let gen = tcc.InlineGenerator();
+      let gen = tcc.CodeGenerator();
       let S = tcc.c_struct('S', StructType({a: 'int'}));
-      gen.add_declaration(S);
+      gen.addDeclaration(S);
       let add = tcc.c_function(ref.refType(S), 'add', [[ref.refType(S), 'a'], [S, 'b']],
         'a->a += b.a;\nreturn a;');
-      gen.add_declaration(add);
+      gen.addDeclaration(add);
       state.compile(gen.code());
       state.relocate();
-      gen.bind_state(state);
+      gen.bindState(state);
       let s = S({a: 23});
       let result = add(s.ref(), S({a: 42}));
       assert.equal(result.deref() instanceof S, true);
       assert.equal(result.deref().a, 65);
     });
     it('struct as c_callable return value', function() {
-      let gen = tcc.InlineGenerator();
+      let gen = tcc.CodeGenerator();
       let S = tcc.c_struct('S', StructType({a: 'int'}));
-      gen.add_declaration(S);
+      gen.addDeclaration(S);
       let obj = new S({a: 123});
       let js_func = function() { return obj; };
       let fromJS = tcc.c_callable(S, 'js_func', [], js_func);
-      gen.add_declaration(fromJS);
+      gen.addDeclaration(fromJS);
       let use = tcc.c_function(S, 'use', [], 'return js_func();');
-      gen.add_declaration(use);
+      gen.addDeclaration(use);
       state.compile(gen.code());
       state.relocate();
-      gen.bind_state(state);
+      gen.bindState(state);
       let result = use();
       assert.equal(result instanceof S, true);
       assert.equal(result.a, 123);
     });
     it('struct pointer as c_callable return value', function() {
-      let gen = tcc.InlineGenerator();
+      let gen = tcc.CodeGenerator();
       let S = tcc.c_struct('S', StructType({a: 'int'}));
-      gen.add_declaration(S);
+      gen.addDeclaration(S);
       let obj = new S({a: 123});
       let js_func = function() { return obj.ref(); };
       let fromJS = tcc.c_callable(ref.refType(S), 'js_func', [], js_func);
-      gen.add_declaration(fromJS);
+      gen.addDeclaration(fromJS);
       let use = tcc.c_function(ref.refType(S), 'use', [],
       `
         // change value of a
@@ -414,19 +414,19 @@ float test2 = 1.23;
         return obj;
       `
       );
-      gen.add_declaration(use);
+      gen.addDeclaration(use);
       state.compile(gen.code());
       state.relocate();
-      gen.bind_state(state);
+      gen.bindState(state);
       let result = use();
       assert.equal(result.deref() instanceof S, true);
       assert.equal(result.deref().a, 999);
       assert.equal(result.address(), obj.ref().address());
     });
     it('alignment', function() {
-      let gen = tcc.InlineGenerator();
+      let gen = tcc.CodeGenerator();
       gen.loadBasicTypes();
-      gen.add_topdeclaration(tcc.Declaration('#include <string.h>'));
+      gen.addTopDeclaration(tcc.Declaration('#include <string.h>'));
       let A = ArrayType('char', 20);
       let S = tcc.c_struct('S', StructType({
         a: 'int8',
@@ -447,11 +447,11 @@ float test2 = 1.23;
         return s;
       `
       );
-      gen.add_declaration(S);
-      gen.add_declaration(init_struct);
+      gen.addDeclaration(S);
+      gen.addDeclaration(init_struct);
       state.compile(gen.code());
       state.relocate();
-      gen.bind_state(state);
+      gen.bindState(state);
       let result = init_struct();
       assert.equal(result.a, 1);
       assert.equal(result.b, 2);
@@ -480,23 +480,23 @@ float test2 = 1.23;
     it('array in struct', function() {
       let state = tcc.DefaultTcc();
       state.setOptions('-Wall');
-      let gen = tcc.InlineGenerator();
+      let gen = tcc.CodeGenerator();
       let A = ArrayType('int', 3);
       let S = tcc.c_struct('S', StructType({a: A}));
       assert.equal(S.declaration.code(),
         'struct __attribute__((aligned(4))) S {\n  int (a[3]);\n};');
-      gen.add_declaration(S);
-      gen.add_declaration(tcc.Declaration('struct S s = {{1, 2, 3}};'));
+      gen.addDeclaration(S);
+      gen.addDeclaration(tcc.Declaration('struct S s = {{1, 2, 3}};'));
       state.compile(gen.code());
       state.relocate();
       let s = state.resolveSymbol('s', S);
       assert.deepEqual(s.a.toArray(), [1, 2, 3]);
     });
     it('array pointer in struct', function() {
-      let gen = tcc.InlineGenerator();
+      let gen = tcc.CodeGenerator();
       let A = ArrayType('int', 3);
       let S = tcc.c_struct('S', StructType({a: ref.refType(A)}));
-      gen.add_declaration(S);
+      gen.addDeclaration(S);
       assert.equal(S.declaration.code(),
           'struct __attribute__((aligned(8))) S {\n  int ((*a)[3]);\n};');
     });
@@ -507,7 +507,7 @@ float test2 = 1.23;
     beforeEach(function(){
       state = tcc.DefaultTcc();
       state.setOptions('-Wall');
-      gen = tcc.InlineGenerator();
+      gen = tcc.CodeGenerator();
     });
     it('wchar types in ref.types', function() {
       assert.equal(ref.types.wchar_t.name, 'wchar_t');
@@ -535,7 +535,7 @@ float test2 = 1.23;
       assert.equal(wchar_t.toString(w2.reinterpretUntilZeros(wchar_t.size)), 'wide chars!');
     });
     it('escape wchar literals in source', function() {
-      state.compile('#include <wchar.h>\nwchar_t w[] = L"'+ tcc.escape_wchar('ümläüts€') + '";');
+      state.compile('#include <wchar.h>\nwchar_t w[] = L"'+ tcc.escapeWchar('ümläüts€') + '";');
       state.relocate();
       let w1 = state.resolveSymbol('w', 'WCString');
       assert.equal(wchar_t.toString(w1.reinterpretUntilZeros(wchar_t.size)), 'ümläüts€');
@@ -543,26 +543,26 @@ float test2 = 1.23;
       assert.equal(wchar_t.toString(w2.reinterpretUntilZeros(wchar_t.size)), 'ümläüts€');
     });
     it('wchar_t* as parameter', function() {
-      gen.add_topdeclaration(tcc.Declaration('#include <wchar.h>'));
+      gen.addTopDeclaration(tcc.Declaration('#include <wchar.h>'));
       let func = tcc.c_function('int', 'func', [['wchar_t*', 'ws']], 'return wcslen(ws);');
-      gen.add_declaration(func);
+      gen.addDeclaration(func);
       state.compile(gen.code());
       state.relocate();
-      gen.bind_state(state);
+      gen.bindState(state);
       assert.equal(func(tcc.WCString('ümläüts€')), 8);
     });
     it('wchar_t* as return value', function() {
-      gen.add_topdeclaration(tcc.Declaration('#include <wchar.h>'));
+      gen.addTopDeclaration(tcc.Declaration('#include <wchar.h>'));
       let func = tcc.c_function('wchar_t*', 'func', [],
         `
-        static wchar_t *ws = L"${tcc.escape_wchar('ümläüts€')}";
+        static wchar_t *ws = L"${tcc.escapeWchar('ümläüts€')}";
         return ws;
         `
       );
-      gen.add_declaration(func);
+      gen.addDeclaration(func);
       state.compile(gen.code());
       state.relocate();
-      gen.bind_state(state);
+      gen.bindState(state);
       let result = func();
       assert.equal(wchar_t.toString(result.reinterpretUntilZeros(wchar_t.size)), 'ümläüts€');
     });
@@ -579,7 +579,7 @@ float test2 = 1.23;
     it('WCString & wstring', function() {
       // WCString gets typedef'd in loadBasicTypes
       gen.loadBasicTypes();
-      gen.add_declaration(tcc.Declaration('WCString w = L"first";'));
+      gen.addDeclaration(tcc.Declaration('WCString w = L"first";'));
       state.compile(gen.code());
       state.relocate();
       let w1 = state.resolveSymbol('w', 'wchar_t*');
@@ -593,16 +593,16 @@ float test2 = 1.23;
   describe('async compilation', function() {
     it('async test1', function(done) {
       let state = tcc.DefaultTcc();
-      let gen = tcc.InlineGenerator();
+      let gen = tcc.CodeGenerator();
       // some declarations
       let S = tcc.c_struct('S', StructType({a: 'int'}));
       let inc = tcc.c_function('void', 'S_inc', [[ref.refType(S), 'this']], 'this->a++;');
-      gen.add_declaration(S);
-      gen.add_declaration(inc);
+      gen.addDeclaration(S);
+      gen.addDeclaration(inc);
       state.compileAsync(gen.code(), (res, err) => {
         assert.equal(res, 0);
         state.relocate();
-        gen.bind_state(state);
+        gen.bindState(state);
         // some work
         let s = new S({a: 0});
         for (let i=0; i<100; ++i)
@@ -614,26 +614,26 @@ float test2 = 1.23;
   });
   describe('satisfy coverage', function() {
     it('add illegal declaration', function() {
-      let gen = tcc.InlineGenerator();
-      assert.throws(() => { gen.add_declaration('illegal'); }, Error);
+      let gen = tcc.CodeGenerator();
+      assert.throws(() => { gen.addDeclaration('illegal'); }, Error);
     });
     it('plain StructType should throw', function() {
       let T = StructType({a: 'int'});
       let S = tcc.c_struct('S', StructType({a: 'int', b: T}));
       assert.throws(() => { S.declaration.code(); }, Error);
     });
-    it('multiple bind_state calls return same symbols map', function() {
-      let gen = tcc.InlineGenerator();
+    it('multiple bindState calls return same symbols map', function() {
+      let gen = tcc.CodeGenerator();
       let state = tcc.DefaultTcc();
       state.setOptions('-Wall');
       let S = tcc.c_struct('S', StructType({a: 'int'}));
-      gen.add_declaration(S);
+      gen.addDeclaration(S);
       let add = tcc.c_function('int', 'add', [[S, 'a'], [S, 'b']], 'return a.a + b.a;');
-      gen.add_declaration(add);
+      gen.addDeclaration(add);
       state.compile(gen.code());
       state.relocate();
-      let symbols1 = gen.bind_state(state);
-      let symbols2 = gen.bind_state(state);
+      let symbols1 = gen.bindState(state);
+      let symbols2 = gen.bindState(state);
       assert.equal(symbols1, symbols2);
     });
     it('arrays are not allowed as return type', function() {

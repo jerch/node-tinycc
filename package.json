@@ -6,7 +6,8 @@
   "scripts": {
     "test": "node node_modules/istanbul/lib/cli.js cover node_modules/mocha/bin/_mocha -- -R spec",
     "preinstall": "node preinstall.js",
-    "install": "node install.js"
+    "install": "node install.js",
+    "doc": "node_modules/jsdoc-to-markdown/bin/cli.js index.js > docs/API.md"
   },
   "author": "Joerg Breitbart <j.breitbart@netzkolchose.de>",
   "license": "MIT",
@@ -16,6 +17,7 @@
   },
   "devDependencies": {
     "istanbul": "^0.4.5",
+    "jsdoc-to-markdown": "^3.0.0",
     "mocha": "^3.4.2",
     "ref-array": "git+https://github.com/jerch/ref-array.git",
     "ref-struct": "^1.1.0",
