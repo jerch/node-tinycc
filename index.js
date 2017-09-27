@@ -843,7 +843,7 @@ function c_function(restype, name, args, code) {
  * (beside some more alignment directives):
  * ```C
  * struct S {
- *     int b;
+ *     int a;
  *     char (*b);
  * };
  * ```

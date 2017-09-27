@@ -75,11 +75,11 @@ console.log(c_func(23, 42));        // --> prints 1031
         * [.loadBasicTypes()](#module_node-tinycc.CodeGenerator+loadBasicTypes)
         * [.code()](#module_node-tinycc.CodeGenerator+code) ⇒ <code>string</code>
         * [.codeWithLineNumbers()](#module_node-tinycc.CodeGenerator+codeWithLineNumbers) ⇒ <code>string</code>
-        * [.addDeclaration(decl)](#module_node-tinycc.CodeGenerator+add_declaration)
-        * [.addTopDeclaration(decl)](#module_node-tinycc.CodeGenerator+add_topdeclaration)
-        * [.bindState(state)](#module_node-tinycc.CodeGenerator+bind_state) ⇒ <code>object</code>
+        * [.addDeclaration(decl)](#module_node-tinycc.CodeGenerator+addDeclaration)
+        * [.addTopDeclaration(decl)](#module_node-tinycc.CodeGenerator+addTopDeclaration)
+        * [.bindState(state)](#module_node-tinycc.CodeGenerator+bindState) ⇒ <code>object</code>
     * [.WCString(s)](#module_node-tinycc.WCString) ⇒ <code>WCString</code>
-    * [.escapeWchar(s)](#module_node-tinycc.escape_wchar) ⇒ <code>string</code>
+    * [.escapeWchar(s)](#module_node-tinycc.escapeWchar) ⇒ <code>string</code>
     * [.DefaultTcc()](#module_node-tinycc.DefaultTcc) ⇒ [<code>Tcc</code>](#module_node-tinycc.Tcc)
     * [.CFuncType(restype, args)](#module_node-tinycc.CFuncType) ⇒ <code>function</code>
     * [.c_callable(restype, name, args, f)](#module_node-tinycc.c_callable) ⇒ <code>Declaration</code>
@@ -383,9 +383,9 @@ let declaration = new tcc.Declaration(
     * [.loadBasicTypes()](#module_node-tinycc.CodeGenerator+loadBasicTypes)
     * [.code()](#module_node-tinycc.CodeGenerator+code) ⇒ <code>string</code>
     * [.codeWithLineNumbers()](#module_node-tinycc.CodeGenerator+codeWithLineNumbers) ⇒ <code>string</code>
-    * [.addDeclaration(decl)](#module_node-tinycc.CodeGenerator+add_declaration)
-    * [.addTopDeclaration(decl)](#module_node-tinycc.CodeGenerator+add_topdeclaration)
-    * [.bindState(state)](#module_node-tinycc.CodeGenerator+bind_state) ⇒ <code>object</code>
+    * [.addDeclaration(decl)](#module_node-tinycc.CodeGenerator+addDeclaration)
+    * [.addTopDeclaration(decl)](#module_node-tinycc.CodeGenerator+addTopDeclaration)
+    * [.bindState(state)](#module_node-tinycc.CodeGenerator+bindState) ⇒ <code>object</code>
 
 <a name="new_module_node-tinycc.CodeGenerator_new"></a>
 
@@ -487,6 +487,7 @@ Get the generated code.
 
 #### gen.codeWithLineNumbers() ⇒ <code>string</code>
 Get the generated code with leading line numbers.
+This is useful for limited debugging.
 
 **Kind**: instance method of [<code>CodeGenerator</code>](#module_node-tinycc.CodeGenerator)  
 <a name="module_node-tinycc.CodeGenerator+addDeclaration"></a>
@@ -670,13 +671,13 @@ Usage example:
 const StructType = require('ref-struct');
 let gen = tcc.CodeGenerator();
 let S = tcc.c_struct('S', StructType({a: 'int', b: 'char*'}));
-add_declaration(S);
+addDeclaration(S);
 ```
 The struct of the example will roughly translate to this C code
 (beside some more alignment directives):
 ```C
 struct S {
-    int b;
+    int a;
     char (*b);
 };
 ```
