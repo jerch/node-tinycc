@@ -56,15 +56,15 @@ let state = tcc.DefaultTcc();
 // here: take the SDL2 header and library from the
 //       SDL2-win32 folder in Windows
 if (process.platform === 'win32') {
-    state.add_include_path('SDL2-win32\include');
-    state.add_link_path('SDL2-win32');
+    state.addIncludePath('SDL2-win32/include');
+    state.addLibraryPath('SDL2-win32');
     // load library by hand
     // this is needed for 2 reasons:
     // - TCC's add_library loads only the .def files in Windows
     //   and leaves the actual DLL loading to Windows
     // - SDL2.dll is not in the common search paths of Windows
     //   therefore the autoloading will fail
-    sdl = CDLL('SDL2-win32\SDL2.dll');  // FIXME with ffi
+    require('ffi').Library(require('path').join(__dirname, '..', 'SDL2-win32', 'SDL2.dll'));
 }
 state.addLibrary('SDL2');
 state.compile(C_CODE);

@@ -72,8 +72,8 @@ let wchar_t = null;
 try {
   wchar_t = require('ref-wchar');
   const Iconv = require('iconv').Iconv;
-  const wchar_set = new Iconv('UTF-8', 'WCHAR_T').convert;
-  const wchar_get = new Iconv('WCHAR_T', 'UTF-8').convert;
+  const wchar_set = new Iconv('UTF-8', 'UTF-16'+ref.endianness).convert;
+  const wchar_get = new Iconv('UTF-16'+ref.endianness, 'UTF-8').convert;
 
   // monkey patch broken wchar_t.toString
   wchar_t.toString = (buffer) => {
@@ -174,7 +174,7 @@ if (process.platform === 'win32') {
    * @method module:node-tinycc.Tcc#setOptions
    */
   Tcc.prototype.setOptions = function (option) {
-    this.lib.tcc_set_option(this.ctx, option);
+    this.lib.tcc_set_options(this.ctx, option);
   };
   /**
    * Set TCC library path. For `DefaultTcc` this is set to the bundled TCC.
