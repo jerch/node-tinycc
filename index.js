@@ -72,8 +72,9 @@ let wchar_t = null;
 try {
   wchar_t = require('ref-wchar');
   const Iconv = require('iconv').Iconv;
-  const wchar_set = new Iconv('UTF-8', 'UTF-16'+ref.endianness).convert;
-  const wchar_get = new Iconv('UTF-16'+ref.endianness, 'UTF-8').convert;
+  let encoding = ((process.platform === 'win32') ? 'UTF-16' : 'UTF-32') + ref.endianness;
+  const wchar_set = new Iconv('UTF-8', encoding).convert;
+  const wchar_get = new Iconv(encoding, 'UTF-8').convert;
 
   // monkey patch broken wchar_t.toString
   wchar_t.toString = (buffer) => {
@@ -373,16 +374,19 @@ function DefaultTcc() {
 }
 
 /**
- * Wrapper for lazy evaluation of a ffi.ForeignFunction.
- * This is needed to postpone the creation of a ffi.ForeignFunction
+ * Wrapper for lazy evaluation of a ffi.ForeignFunction or ffi.VariadicForeignFunction.
+ * This is needed to postpone the creation of the ffi function
  * until we got the real C symbol pointer.
  * @param {string|object} restype - known type of `ref.types`
- * @param {array} args - array of parameter types
+ * @param {Array} args - array of parameter types
+ * @param {boolean=} variadic - indicate a variadic function
  * @return {function(ref.ref) : ffi.ForeignFunction}
  * @function module:node-tinycc.CFuncType
  */
-function CFuncType(restype, args) {
-  return (pointer) => ffi.ForeignFunction(pointer, restype, args);
+function CFuncType(restype, args, variadic) {
+    return (pointer) => (variadic)
+        ? ffi.VariadicForeignFunction(pointer, restype, args)
+        : ffi.ForeignFunction(pointer, restype, args);
 }
 
 /**
@@ -390,7 +394,7 @@ function CFuncType(restype, args) {
  * `CodeGenerator.bindState`. It also holds a reference of
  * the callback to avoid early garbage collection.
  * @param {string|object} restype - known type of `ref.types`
- * @param {array} args - array of parameter types
+ * @param {Array} args - array of parameter types
  * @param {function} f - callback function
  * @constructor module:node-tinycc.FuncSymbol
  */
@@ -427,7 +431,7 @@ function FuncSymbol(restype, args, f) {
  * @param {string|function} code -  C source as string or a function
  *                                  returning the source code string
  * @param {string=} forward - optional forward declaration
- * @param {array=} symbols - optional array of [type, symbol name]
+ * @param {Array=} symbols - optional array of [type, symbol name]
  *                           to be autoresolved by the generator
  * @return {Declaration}
  * @constructor module:node-tinycc.Declaration
@@ -469,7 +473,7 @@ function Declaration(code, forward, symbols) {
  * );
  * gen.addDeclaration(
  *   tcc.Declaration(
- *     'void func() { printf("Hello World!\n"); }',
+ *     'void func() { printf("Hello World!\\n"); }',
  *     'void func();',
  *     [[tcc.CFuncType('void', []), 'func']]
  *   )
@@ -633,7 +637,7 @@ CodeGenerator.prototype.addTopDeclaration = function(decl) {
  * corresponding type.
  *
  * @param {Tcc} state - state to bind to symbols
- * @return {object}
+ * @return {Object}
  * @method module:node-tinycc.CodeGenerator#bindState
  */
 CodeGenerator.prototype.bindState = function(state) {
@@ -725,19 +729,22 @@ function _restype(type) {
 
 /**
  * Helper to create full C function declarations.
- * @param restype
- * @param name
- * @param args
- * @param pointer
+ * @param {string|Object} restype
+ * @param {string} name
+ * @param {Array} args
+ * @param {boolean=} varargs
+ * @param {boolean=} pointer
  * @return {string}
  * @private
  */
-function _func_decl(restype, name, args, pointer) {
+function _func_decl(restype, name, args, varargs, pointer) {
   let vars = '';
   if (args.length)
     vars = (args[0] instanceof Array)
         ? args.map(([type, varname]) => _var_decl(varname, type)).join(', ')
         : args.map((type) => _var_decl('', type)).join(', ');
+  if (varargs)
+    vars += ', ...';
   return `${_restype(restype)} ` + ((pointer) ? `(*${name})` : name) + `(${vars})`;
 }
 
@@ -755,9 +762,9 @@ function _func_decl(restype, name, args, pointer) {
  * gen.addDeclaration(decl);
  * ...
  * ```
- * @param {string|object} restype - known type of `ref.types`
+ * @param {string|Object} restype - known type of `ref.types`
  * @param {string} name - function pointer name
- * @param {array} args - array of parameter types
+ * @param {Array} args - array of parameter types
  * @param {function} f - Javascript function
  * @return {Declaration}
  * @function module:node-tinycc.c_callable
@@ -765,7 +772,7 @@ function _func_decl(restype, name, args, pointer) {
 function c_callable(restype, name, args, f) {
   return new Declaration(
     '',
-    _func_decl(restype, name, args, true) + ' = 0;',
+    _func_decl(restype, name, args, false, true) + ' = 0;',
     [[new FuncSymbol(restype, args, f), name]]
   );
 }
@@ -798,19 +805,25 @@ function c_callable(restype, name, args, f) {
  * gen.bindState(state);
  * console.log(add(23, 42));  // use it
  * ```
- * @param {string|object} restype - known type of `ref.types`
+ * @param {string|Object} restype - known type of `ref.types`
  * @param {string} name - function pointer name
- * @param {array} args - array of [type, parameter name]
+ * @param {Array} args - array of [type, parameter name]
  * @param {string} code - C function body
  * @return {func} proxy function
  * @function module:node-tinycc.c_function
  */
 function c_function(restype, name, args, code) {
-  let header = _func_decl(restype, name, args);
+  let last_arg = args.pop();
+  let varargs = (
+      last_arg && last_arg === '...'
+      || (last_arg instanceof Array && last_arg.length === 1 && last_arg[0] === '...'));
+  if (last_arg && !varargs)
+      args.push(last_arg);
+  let header = _func_decl(restype, name, args, varargs);
   let declaration = new Declaration(
     `${header}\n{\n${code||''}\n}\n`,
     header + ';',
-    [[CFuncType(restype, args.map(([type, _]) => type)), name]]
+    [[CFuncType(restype, args.map(([type, _]) => type), varargs), name]]
   );
   let func = function() {
     if (func.declaration.symbols_resolved[name])

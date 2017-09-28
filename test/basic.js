@@ -165,6 +165,36 @@ float test2 = 1.23;
       gen.bindState(state);
       assert.equal(fibonacci(10), 55);
     });
+    it('variadic c_function', function() {
+      let sum = tcc.c_function('int', 'sum', [['int', 'arg'], '...'],
+      `
+        va_list ap;
+        int argc = 0;
+    
+        va_start(ap, arg);
+        for (argc=1; va_arg(ap, int); ++argc);
+        va_end(ap);
+    
+        int i;
+        int argv[argc];
+        va_start(ap, arg);
+        argv[0] = arg;
+        for (i = 1; i < argc; ++i)
+            argv[i] = va_arg(ap, int);
+        va_end(ap);
+    
+        int result = 0;
+        for (i = 0; i < argc; ++i)
+            result += argv[i];
+        return result;
+      `);
+      gen.addDeclaration(sum);
+      gen.addTopDeclaration(tcc.Declaration('#include <stdarg.h>'));
+      state.compile(gen.code());
+      state.relocate();
+      gen.bindState(state);
+      assert.equal(sum('int', 'int', 'int')(1, 2, 3, 0), 6);
+    });
     it('JS function from C', function(){
       let add = function(a, b) { return a+b; };
       let fromJS = tcc.c_callable('int', 'add', ['int', 'int'], add);
@@ -250,34 +280,48 @@ float test2 = 1.23;
             'void a(struct T (*(*t)))');
       });
       it('void (*a)()', function() {
-        assert.equal(tcc._func_decl('void', 'a', [], true), 'void (*a)()');
+        assert.equal(tcc._func_decl('void', 'a', [], false, true), 'void (*a)()');
       });
       it('int (*a)(int, int)', function() {
-        assert.equal(tcc._func_decl('int', 'a', ['int', 'int'], true), 'int (*a)(int , int )');
+        assert.equal(tcc._func_decl('int', 'a', ['int', 'int'], false, true), 'int (*a)(int , int )');
       });
       it('int* (*a)(char*)', function() {
-        assert.equal(tcc._func_decl('int*', 'a', ['char*'], true), 'int* (*a)(char (*))');
+        assert.equal(tcc._func_decl('int*', 'a', ['char*'], false, true), 'int* (*a)(char (*))');
       });
       it('int** (*a)(char**, char**)', function() {
-        assert.equal(tcc._func_decl('int**', 'a', ['char**', 'char**'], true),
+        assert.equal(tcc._func_decl('int**', 'a', ['char**', 'char**'], false, true),
             'int** (*a)(char (*(*)), char (*(*)))');
       });
       it('struct T* (*a)(struct T)', function() {
         let T = tcc.c_struct('T', StructType());
-        assert.equal(tcc._func_decl(ref.refType(T), 'a', [T], true),
+        assert.equal(tcc._func_decl(ref.refType(T), 'a', [T], false, true),
             'struct T* (*a)(struct T )');
       });
       it('void (*a)(struct T**)', function() {
         let T = tcc.c_struct('T', StructType());
-        assert.equal(tcc._func_decl('void', 'a', [ref.refType(ref.refType(T))], true),
+        assert.equal(tcc._func_decl('void', 'a', [ref.refType(ref.refType(T))], false, true),
             'void (*a)(struct T (*(*)))');
       });
       it('struct T** (*test)(struct T *(*[5])[10])', function() {
         let T = tcc.c_struct('T', StructType({a: 'int'}));
         let A1 = ArrayType(ref.refType(T), 10);
         let A2 = ArrayType(ref.refType(A1), 5);
-        assert.equal(tcc._func_decl(ref.refType(ref.refType(T)), 'test', [A2], true),
+        assert.equal(tcc._func_decl(ref.refType(ref.refType(T)), 'test', [A2], false, true),
             'struct T** (*test)(struct T (*((*([5]))[10])))');
+      });
+      it('struct T** test(struct T *(*[5])[10], ...)', function() {
+        let T = tcc.c_struct('T', StructType({a: 'int'}));
+        let A1 = ArrayType(ref.refType(T), 10);
+        let A2 = ArrayType(ref.refType(A1), 5);
+        assert.equal(tcc._func_decl(ref.refType(ref.refType(T)), 'test', [A2], true, false),
+            'struct T** test(struct T (*((*([5]))[10])), ...)');
+      });
+      it('struct T** (*test)(struct T *(*[5])[10], ...)', function() {
+        let T = tcc.c_struct('T', StructType({a: 'int'}));
+        let A1 = ArrayType(ref.refType(T), 10);
+        let A2 = ArrayType(ref.refType(A1), 5);
+        assert.equal(tcc._func_decl(ref.refType(ref.refType(T)), 'test', [A2], true, true),
+            'struct T** (*test)(struct T (*((*([5]))[10])), ...)');
       });
   });
   describe('struct tests', function() {
