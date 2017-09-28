@@ -77,11 +77,11 @@ console.log(c_func(23, 42));        // --> prints 1031
         * [.codeWithLineNumbers()](#module_node-tinycc.CodeGenerator+codeWithLineNumbers) ⇒ <code>string</code>
         * [.addDeclaration(decl)](#module_node-tinycc.CodeGenerator+addDeclaration)
         * [.addTopDeclaration(decl)](#module_node-tinycc.CodeGenerator+addTopDeclaration)
-        * [.bindState(state)](#module_node-tinycc.CodeGenerator+bindState) ⇒ <code>object</code>
+        * [.bindState(state)](#module_node-tinycc.CodeGenerator+bindState) ⇒ <code>Object</code>
     * [.WCString(s)](#module_node-tinycc.WCString) ⇒ <code>WCString</code>
     * [.escapeWchar(s)](#module_node-tinycc.escapeWchar) ⇒ <code>string</code>
     * [.DefaultTcc()](#module_node-tinycc.DefaultTcc) ⇒ [<code>Tcc</code>](#module_node-tinycc.Tcc)
-    * [.CFuncType(restype, args)](#module_node-tinycc.CFuncType) ⇒ <code>function</code>
+    * [.CFuncType(restype, args, [variadic])](#module_node-tinycc.CFuncType) ⇒ <code>function</code>
     * [.c_callable(restype, name, args, f)](#module_node-tinycc.c_callable) ⇒ <code>Declaration</code>
     * [.c_function(restype, name, args, code)](#module_node-tinycc.c_function) ⇒ <code>func</code>
     * [.c_struct(name, structType)](#module_node-tinycc.c_struct) ⇒ <code>StructType</code>
@@ -92,10 +92,36 @@ console.log(c_func(23, 42));        // --> prints 1031
 The Tcc class provides low level access to the libtcc-API
 of the Tiny C Compiler (TCC).
 
+On Windows this class is constructed in Javascript
+with `ffi` from a precompiled libtcc.dll delivered with the module.
+On POSIX systems the class is a C++ class build in a native extension
+from the repository source.
+
 **Kind**: static class of [<code>node-tinycc</code>](#module_node-tinycc)  
-**Note**: On Windows this class is constructed in Javascript
-with `ffi` from a precompiled libtcc.dll delivered with this module.
-On POSIX systems the class is a C++ class build in a native extension.  
+**Note**: It is important to note that you must not mix different TCC states.
+Because TCC uses global states internally, any new state will leave
+the old one corrupted. The compiled result is not affected by this,
+therefore it is important to finish a state up to the compilation
+before using a new one. This is a major drawback of the TCC API.
+Because of the global internal states it is also not possible to cleanup
+a state properly (a Tcc() invocation will leak memory).
+While this works:
+```js
+let state1 = Tcc();
+...
+state1.compile('...') && state1.relocate();  // finished with state1
+
+let state2 = Tcc();  // state1 got corrupted but we are with it anyways
+...
+state2.compile('...') && state2.relocate();  // finished with state2
+
+// use symbols from state1 & state2
+```
+this will break:
+```js
+let state1 = Tcc();
+let state2 = Tcc();  // state1 got corrupted, state2 is working as expected
+```  
 
 * [.Tcc](#module_node-tinycc.Tcc)
     * [new Tcc(tcclib)](#new_module_node-tinycc.Tcc_new)
@@ -330,7 +356,7 @@ the callback to avoid early garbage collection.
 | Param | Type | Description |
 | --- | --- | --- |
 | restype | <code>string</code> \| <code>object</code> | known type of `ref.types` |
-| args | <code>array</code> | array of parameter types |
+| args | <code>Array</code> | array of parameter types |
 | f | <code>function</code> | callback function |
 
 <a name="module_node-tinycc.Declaration"></a>
@@ -353,7 +379,7 @@ access them via the attribute `.symbols_resolved`.
 | --- | --- | --- |
 | code | <code>string</code> \| <code>function</code> | C source as string or a function                                  returning the source code string |
 | [forward] | <code>string</code> | optional forward declaration |
-| [symbols] | <code>array</code> | optional array of [type, symbol name]                           to be autoresolved by the generator |
+| [symbols] | <code>Array</code> | optional array of [type, symbol name]                           to be autoresolved by the generator |
 
 **Example**  
 ```js
@@ -385,7 +411,7 @@ let declaration = new tcc.Declaration(
     * [.codeWithLineNumbers()](#module_node-tinycc.CodeGenerator+codeWithLineNumbers) ⇒ <code>string</code>
     * [.addDeclaration(decl)](#module_node-tinycc.CodeGenerator+addDeclaration)
     * [.addTopDeclaration(decl)](#module_node-tinycc.CodeGenerator+addTopDeclaration)
-    * [.bindState(state)](#module_node-tinycc.CodeGenerator+bindState) ⇒ <code>object</code>
+    * [.bindState(state)](#module_node-tinycc.CodeGenerator+bindState) ⇒ <code>Object</code>
 
 <a name="new_module_node-tinycc.CodeGenerator_new"></a>
 
@@ -416,7 +442,7 @@ gen.addTopDeclaration(
 );
 gen.addDeclaration(
   tcc.Declaration(
-    'void func() { printf("Hello World!\n"); }',
+    'void func() { printf("Hello World!\\n"); }',
     'void func();',
     [[tcc.CFuncType('void', []), 'func']]
   )
@@ -515,7 +541,7 @@ will be ignored for declarations added to the top section.
 
 <a name="module_node-tinycc.CodeGenerator+bindState"></a>
 
-#### gen.bindState(state) ⇒ <code>object</code>
+#### gen.bindState(state) ⇒ <code>Object</code>
 Resolve symbols between C and Javascript. Call this after
 compilation and relocation before using any C stuff.
 
@@ -574,9 +600,9 @@ dependent tcc folders.
 **Kind**: static method of [<code>node-tinycc</code>](#module_node-tinycc)  
 <a name="module_node-tinycc.CFuncType"></a>
 
-### tcc.CFuncType(restype, args) ⇒ <code>function</code>
-Wrapper for lazy evaluation of a ffi.ForeignFunction.
-This is needed to postpone the creation of a ffi.ForeignFunction
+### tcc.CFuncType(restype, args, [variadic]) ⇒ <code>function</code>
+Wrapper for lazy evaluation of a ffi.ForeignFunction or ffi.VariadicForeignFunction.
+This is needed to postpone the creation of the ffi function
 until we got the real C symbol pointer.
 
 **Kind**: static method of [<code>node-tinycc</code>](#module_node-tinycc)  
@@ -584,7 +610,8 @@ until we got the real C symbol pointer.
 | Param | Type | Description |
 | --- | --- | --- |
 | restype | <code>string</code> \| <code>object</code> | known type of `ref.types` |
-| args | <code>array</code> | array of parameter types |
+| args | <code>Array</code> | array of parameter types |
+| [variadic] | <code>boolean</code> | indicate a variadic function |
 
 <a name="module_node-tinycc.c_callable"></a>
 
@@ -607,9 +634,9 @@ gen.addDeclaration(decl);
 
 | Param | Type | Description |
 | --- | --- | --- |
-| restype | <code>string</code> \| <code>object</code> | known type of `ref.types` |
+| restype | <code>string</code> \| <code>Object</code> | known type of `ref.types` |
 | name | <code>string</code> | function pointer name |
-| args | <code>array</code> | array of parameter types |
+| args | <code>Array</code> | array of parameter types |
 | f | <code>function</code> | Javascript function |
 
 <a name="module_node-tinycc.c_function"></a>
@@ -648,9 +675,9 @@ console.log(add(23, 42));  // use it
 
 | Param | Type | Description |
 | --- | --- | --- |
-| restype | <code>string</code> \| <code>object</code> | known type of `ref.types` |
+| restype | <code>string</code> \| <code>Object</code> | known type of `ref.types` |
 | name | <code>string</code> | function pointer name |
-| args | <code>array</code> | array of [type, parameter name] |
+| args | <code>Array</code> | array of [type, parameter name] |
 | code | <code>string</code> | C function body |
 
 <a name="module_node-tinycc.c_struct"></a>

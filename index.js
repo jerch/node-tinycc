@@ -135,10 +135,35 @@ if (process.platform === 'win32') {
    * @classdesc The Tcc class provides low level access to the libtcc-API
    * of the Tiny C Compiler (TCC).
    *
-   * @note On Windows this class is constructed in Javascript
-   * with `ffi` from a precompiled libtcc.dll delivered with this module.
-   * On POSIX systems the class is a C++ class build in a native extension.
+   * On Windows this class is constructed in Javascript
+   * with `ffi` from a precompiled libtcc.dll delivered with the module.
+   * On POSIX systems the class is a C++ class build in a native extension
+   * from the repository source.
    *
+   * @note It is important to note that you must not mix different TCC states.
+   * Because TCC uses global states internally, any new state will leave
+   * the old one corrupted. The compiled result is not affected by this,
+   * therefore it is important to finish a state up to the compilation
+   * before using a new one. This is a major drawback of the TCC API.
+   * Because of the global internal states it is also not possible to cleanup
+   * a state properly (a Tcc() invocation will leak memory).
+   * While this works:
+   * ```js
+   * let state1 = Tcc();
+   * ...
+   * state1.compile('...') && state1.relocate();  // finished with state1
+   *
+   * let state2 = Tcc();  // state1 got corrupted but we are with it anyways
+   * ...
+   * state2.compile('...') && state2.relocate();  // finished with state2
+   *
+   * // use symbols from state1 & state2
+   * ```
+   * this will break:
+   * ```js
+   * let state1 = Tcc();
+   * let state2 = Tcc();  // state1 got corrupted, state2 is working as expected
+   * ```
    * @param tcclib
    * @return {Tcc}
    * @constructor module:node-tinycc.Tcc
