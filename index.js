@@ -153,7 +153,7 @@ if (process.platform === 'win32') {
    * ...
    * state1.compile('...') && state1.relocate();  // finished with state1
    *
-   * let state2 = Tcc();  // state1 got corrupted but we are with it anyways
+   * let state2 = Tcc();  // state1 got corrupted but we are done with it anyways
    * ...
    * state2.compile('...') && state2.relocate();  // finished with state2
    *

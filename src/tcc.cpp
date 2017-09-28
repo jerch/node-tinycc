@@ -64,6 +64,8 @@ public:
         Nan::SetPrototypeMethod(tpl, "addSymbol", AddSymbol);
         Nan::SetPrototypeMethod(tpl, "getSymbol", GetSymbol);
         Nan::SetPrototypeMethod(tpl, "run", Run);
+        Nan::SetPrototypeMethod(tpl, "setOutputType", SetOutputType);
+        Nan::SetPrototypeMethod(tpl, "outputFile", OutputFile);
 
         tmpl().Reset(tpl);
         return tpl;
@@ -269,6 +271,20 @@ private:
         );
         uv_rwlock_wrunlock(&obj->lock);
         info.GetReturnValue().Set(Nan::New<Number>(res));
+    }
+    static NAN_METHOD(SetOutputType) {
+        TCC *obj = Nan::ObjectWrap::Unwrap<TCC>(info.Holder());
+        uv_rwlock_wrlock(&obj->lock);
+        tcc_set_output_type(obj->state, info[0]->IntegerValue());
+        uv_rwlock_wrunlock(&obj->lock);
+        info.GetReturnValue().SetUndefined();
+    }
+    static NAN_METHOD(OutputFile) {
+        TCC *obj = Nan::ObjectWrap::Unwrap<TCC>(info.Holder());
+        uv_rwlock_wrlock(&obj->lock);
+        tcc_output_file(obj->state, *String::Utf8Value(info[0]->ToString()));
+        uv_rwlock_wrunlock(&obj->lock);
+        info.GetReturnValue().SetUndefined();
     }
 
     TCCState *state = NULL;
