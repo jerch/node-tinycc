@@ -1,6 +1,6 @@
 {
   "name": "node-tinycc",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "description": "Inline C in Javascript with Tiny C Compiler.",
   "main": "index.js",
   "scripts": {
@@ -11,6 +11,10 @@
   },
   "author": "Joerg Breitbart <j.breitbart@netzkolchose.de>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jerch/node-tinycc.git"
+  },
   "dependencies": {
     "ffi": "^2.2.0",
     "ref": "^1.3.4"
