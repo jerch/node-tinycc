@@ -63,14 +63,14 @@
 
 'use strict';
 
-const ffi = require('ffi');
-const ref = require('ref');
+const ffi = require('@napi-ffi/ffi-napi');
+const ref = require('@napi-ffi/ref-napi');
 const path = require('path');
 
 // optional wchar_t support
 let wchar_t = null;
 try {
-  wchar_t = require('ref-wchar');
+  wchar_t = require('ref-wchar-napi');
   const Iconv = require('iconv').Iconv;
   let encoding = ((process.platform === 'win32') ? 'UTF-16' : 'UTF-32') + ref.endianness;
   const wchar_set = new Iconv('UTF-8', encoding).convert;
@@ -113,7 +113,7 @@ try {
    * ```
    * @param {string} s
    * @return {string}
-   * @note The function is only exported, if the module `ref-wchar` is installed.
+   * @note The function is only exported, if the module `ref-wchar-napi` is installed.
    */
   module.exports.escapeWchar = function(s) {
     /* istanbul ignore next */
@@ -392,6 +392,7 @@ function DefaultTcc() {
   } else {
     state = new Tcc();
     state.setLibPath(path.join(__dirname, 'posix', 'lib', 'tcc'));
+    state.addLibraryPath(path.join(__dirname, 'posix', 'lib', 'tcc'));
     state.addIncludePath(path.join(__dirname, 'posix', 'lib', 'tcc', 'include'));
     state.addIncludePath(path.join(__dirname, 'posix', 'include'));
   }
@@ -564,7 +565,7 @@ function CodeGenerator() {
  * | ulonglong | unsigned long long |
  *
  * Furthermore it includes `<stddef.h>`, `<stdint.h>` and `<stdbool.h>`.
- * If the module `ref-wchar` is installed, `WCString` is typedef'd as
+ * If the module `ref-wchar-napi` is installed, `WCString` is typedef'd as
  * `wchar_t` pointer.
  * @method module:node-tinycc.CodeGenerator#loadBasicTypes
  */
@@ -862,7 +863,7 @@ function c_function(restype, name, args, code) {
 /**
  * Convenient declaration function to declare a struct type usable in C and Javascript.
  *
- * This function extracts the field names and types of a StructType (module `ref-struct`)
+ * This function extracts the field names and types of a StructType (module `ref-struct-napi`)
  * to create a struct declaration (forward section) and definition for C (code section).
  * A field type is resolved recursively to catch complicated type mixtures that
  * can easily be build with  StructTypes, ArrayTypes and pointer types
@@ -872,7 +873,7 @@ function c_function(restype, name, args, code) {
  * a `ref.types` type is needed, e.g. as function parameter or return type.
  * Usage example:
  * ```js
- * const StructType = require('ref-struct');
+ * const StructType = require('ref-struct-napi');
  * let gen = tcc.CodeGenerator();
  * let S = tcc.c_struct('S', StructType({a: 'int', b: 'char*'}));
  * addDeclaration(S);

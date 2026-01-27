@@ -1,8 +1,8 @@
 const tcc = require('../index');
-const ref = require('ref');
-const StructType = require('ref-struct');
-const ArrayType = require('ref-array');
-const wchar_t = require('ref-wchar');
+const ref = require('@napi-ffi/ref-napi');
+const StructType = require('ref-struct-napi');
+const ArrayType = require('ref-array-napi');
+const wchar_t = require('ref-wchar-napi');
 const assert = require('assert');
 
 describe('TCC tests', function() {
@@ -14,20 +14,20 @@ describe('TCC tests', function() {
     });
     it('compile & run', function(){
       state.compile('int main(int argc, char *argv[]) {return 123;}');
-      assert.equal(state.run(0, null), 123);
+      assert.strictEqual(state.run(0, null), 123);
     });
     it('resolve C symbol', function(){
       state.compile('int x = 123;');
       state.relocate();
       let x = state.resolveSymbol('x', 'int');
-      assert.equal(x.deref(), 123);
+      assert.strictEqual(x.deref(), 123);
     });
     it('set C symbol value', function(){
       state.compile('int x = 123;');
       state.relocate();
       state.setSymbol('x', ref.alloc('int', 999));
       let x = state.resolveSymbol('x', 'int');
-      assert.equal(x.deref(), 999);
+      assert.strictEqual(x.deref(), 999);
     });
     it('change C symbol value', function(){
       state.compile('int x = 123;');
@@ -35,15 +35,15 @@ describe('TCC tests', function() {
       let x = state.resolveSymbol('x', 'int');
       ref.set(x, 0, 999);
       let x2 = state.resolveSymbol('x', 'int');
-      assert.equal(x2.deref(), 999);
+      assert.strictEqual(x2.deref(), 999);
     });
     it('resolve & run C function', function(){
       state.compile('int test(int a){return a+1;}');
       state.relocate();
       let func1 = state.resolveSymbol('test', tcc.CFuncType('int', ['int']));
-      assert.equal(func1(1), 2);
+      assert.strictEqual(func1(1), 2);
       let func2 = state.getFunction('test', 'int', ['int']);
-      assert.equal(func2(1), 2);
+      assert.strictEqual(func2(1), 2);
     });
     it('resolve & run JS callback', function(){
       let code = '';
@@ -53,11 +53,11 @@ describe('TCC tests', function() {
       state.compile(code);
       state.relocate();
       let func = state.resolveSymbol('use_callback', tcc.CFuncType('int', []));
-      assert.equal(func(), -1);
+      assert.strictEqual(func(), -1);
       state.setFunction(
           'callback',
           tcc.Callback('int', ['int', 'int'], function(a, b) { return a+b; }));
-      assert.equal(func(), 65);
+      assert.strictEqual(func(), 65);
     });
   });
   describe('inline code generator', function(){
@@ -98,7 +98,7 @@ describe('TCC tests', function() {
       code += 'ulonglong x;';
       code += 'size_t    y;';
       gen.addDeclaration(tcc.Declaration(code));
-      assert.equal(state.compile(gen.code()), 0);
+      assert.strictEqual(state.compile(gen.code()), 0);
     });
     it('add declaration', function(){
       let decl1 = tcc.Declaration('int test1 = 123;', 'int test1;');
@@ -117,7 +117,7 @@ float test2;
 int test1 = 123;
 float test2 = 1.23;
 `;
-      assert.equal(gen.code(), expected);
+      assert.strictEqual(gen.code(), expected);
       let withLineNumber = ` 1: /* top */
  2: #include <stdio.h>
  3: 
@@ -129,7 +129,7 @@ float test2 = 1.23;
  9: int test1 = 123;
 10: float test2 = 1.23;
 11: `;
-      assert.equal(gen.codeWithLineNumbers(), withLineNumber);
+      assert.strictEqual(gen.codeWithLineNumbers(), withLineNumber);
     });
     it('resolve symbol from declaration', function(){
       let decl = tcc.Declaration(
@@ -140,8 +140,8 @@ float test2 = 1.23;
       state.compile(gen.code());
       state.relocate();
       let symbols = gen.bindState(state);
-      assert.equal(symbols.test1.deref(), 123);
-      assert.equal(symbols.test2.deref(), 1.23);
+      assert.strictEqual(symbols.test1.deref(), 123);
+      assert.strictEqual(symbols.test2.deref(), 1.23);
     });
     it('c_function generation & invocation', function() {
       let fibonacci = tcc.c_function('int', 'fibonacci', [['int', 'a']],
@@ -163,7 +163,7 @@ float test2 = 1.23;
       state.compile(gen.code());
       state.relocate();
       gen.bindState(state);
-      assert.equal(fibonacci(10), 55);
+      assert.strictEqual(fibonacci(10), 55);
     });
     it('variadic c_function', function() {
       let sum = tcc.c_function('int', 'sum', [['int', 'arg'], '...'],
@@ -193,7 +193,7 @@ float test2 = 1.23;
       state.compile(gen.code());
       state.relocate();
       gen.bindState(state);
-      assert.equal(sum('int', 'int', 'int')(1, 2, 3, 0), 6);
+      assert.strictEqual(sum('int', 'int', 'int')(1, 2, 3, 0), 6);
     });
     it('JS function from C', function(){
       let add = function(a, b) { return a+b; };
@@ -204,123 +204,123 @@ float test2 = 1.23;
       state.compile(gen.code());
       state.relocate();
       gen.bindState(state);
-      assert.equal(use(23, 42), 65);
+      assert.strictEqual(use(23, 42), 65);
     });
   });
   describe('c declarations', function() {
       it('int a', function() {
-        assert.equal(tcc._var_decl('a', 'int'), 'int a');
+        assert.strictEqual(tcc._var_decl('a', 'int'), 'int a');
       });
       it('int *a', function() {
-        assert.equal(tcc._var_decl('a', 'int*'), 'int (*a)');
+        assert.strictEqual(tcc._var_decl('a', 'int*'), 'int (*a)');
       });
       it('int **a', function() {
-        assert.equal(tcc._var_decl('a', 'int**'), 'int (*(*a))');
+        assert.strictEqual(tcc._var_decl('a', 'int**'), 'int (*(*a))');
       });
       it('int a[]', function() {
-        assert.equal(tcc._var_decl('a', ArrayType('int')), 'int (a[])');
+        assert.strictEqual(tcc._var_decl('a', ArrayType('int')), 'int (a[])');
       });
       it('int a[5]', function() {
-        assert.equal(tcc._var_decl('a', ArrayType('int', 5)), 'int (a[5])');
+        assert.strictEqual(tcc._var_decl('a', ArrayType('int', 5)), 'int (a[5])');
       });
       it('int *a[]', function() {
-        assert.equal(tcc._var_decl('a', ArrayType(ref.refType('int'))), 'int (*(a[]))');
+        assert.strictEqual(tcc._var_decl('a', ArrayType(ref.refType('int'))), 'int (*(a[]))');
       });
       it('int *a[5]', function() {
-        assert.equal(tcc._var_decl('a', ArrayType(ref.refType('int'), 5)), 'int (*(a[5]))');
+        assert.strictEqual(tcc._var_decl('a', ArrayType(ref.refType('int'), 5)), 'int (*(a[5]))');
       });
       it('int (*a)[5]', function() {
-        assert.equal(tcc._var_decl('a', ref.refType(ArrayType('int', 5))), 'int ((*a)[5])');
+        assert.strictEqual(tcc._var_decl('a', ref.refType(ArrayType('int', 5))), 'int ((*a)[5])');
       });
       it('int a[][]', function() {
-        assert.equal(tcc._var_decl('a', ArrayType(ArrayType('int'))), 'int ((a[])[])');
+        assert.strictEqual(tcc._var_decl('a', ArrayType(ArrayType('int'))), 'int ((a[])[])');
       });
       it('int a[2][5]', function() {
-        assert.equal(tcc._var_decl('a', ArrayType(ArrayType('int', 5), 2)), 'int ((a[2])[5])');
+        assert.strictEqual(tcc._var_decl('a', ArrayType(ArrayType('int', 5), 2)), 'int ((a[2])[5])');
       });
       it('int *a[2][5]', function() {
-        assert.equal(tcc._var_decl('a', ArrayType(ArrayType(ref.refType('int'), 5), 2)),
+        assert.strictEqual(tcc._var_decl('a', ArrayType(ArrayType(ref.refType('int'), 5), 2)),
           'int (*((a[2])[5]))');
       });
       it('struct T t', function() {
-        assert.equal(tcc._var_decl('t', tcc.c_struct('T', StructType())), 'struct T t');
+        assert.strictEqual(tcc._var_decl('t', tcc.c_struct('T', StructType())), 'struct T t');
       });
       it('struct T *t', function() {
-        assert.equal(tcc._var_decl('t', ref.refType(tcc.c_struct('T', StructType()))), 'struct T (*t)');
+        assert.strictEqual(tcc._var_decl('t', ref.refType(tcc.c_struct('T', StructType()))), 'struct T (*t)');
       });
       it('struct T t[]', function() {
         let A = ArrayType(tcc.c_struct('T', StructType({a: 'int'})));
-        assert.equal(tcc._var_decl('t', A), 'struct T (t[])');
+        assert.strictEqual(tcc._var_decl('t', A), 'struct T (t[])');
       });
       it('struct T t[5]', function() {
         let A = ArrayType(tcc.c_struct('T', StructType({a: 'int'})), 5);
-        assert.equal(tcc._var_decl('t', A), 'struct T (t[5])');
+        assert.strictEqual(tcc._var_decl('t', A), 'struct T (t[5])');
       });
       it('void a()', function() {
-        assert.equal(tcc._func_decl('void', 'a', []), 'void a()');
+        assert.strictEqual(tcc._func_decl('void', 'a', []), 'void a()');
       });
       it('int a(int x, int y)', function() {
-        assert.equal(tcc._func_decl('int', 'a', [['int', 'x'], ['int', 'y']]), 'int a(int x, int y)');
+        assert.strictEqual(tcc._func_decl('int', 'a', [['int', 'x'], ['int', 'y']]), 'int a(int x, int y)');
       });
       it('int* a(char* x)', function() {
-        assert.equal(tcc._func_decl('int*', 'a', [['char*', 'x']]), 'int* a(char (*x))');
+        assert.strictEqual(tcc._func_decl('int*', 'a', [['char*', 'x']]), 'int* a(char (*x))');
       });
       it('int** a(char** x, char** y)', function() {
-        assert.equal(tcc._func_decl('int**', 'a', [['char**', 'x'], ['char**', 'y']]),
+        assert.strictEqual(tcc._func_decl('int**', 'a', [['char**', 'x'], ['char**', 'y']]),
             'int** a(char (*(*x)), char (*(*y)))');
       });
       it('struct T* a(struct T t)', function() {
         let T = tcc.c_struct('T', StructType());
-        assert.equal(tcc._func_decl(ref.refType(T), 'a', [[T, 't']]),
+        assert.strictEqual(tcc._func_decl(ref.refType(T), 'a', [[T, 't']]),
             'struct T* a(struct T t)');
       });
       it('void a(struct T** t)', function() {
         let T = tcc.c_struct('T', StructType());
-        assert.equal(tcc._func_decl('void', 'a', [[ref.refType(ref.refType(T)), 't']]),
+        assert.strictEqual(tcc._func_decl('void', 'a', [[ref.refType(ref.refType(T)), 't']]),
             'void a(struct T (*(*t)))');
       });
       it('void (*a)()', function() {
-        assert.equal(tcc._func_decl('void', 'a', [], false, true), 'void (*a)()');
+        assert.strictEqual(tcc._func_decl('void', 'a', [], false, true), 'void (*a)()');
       });
       it('int (*a)(int, int)', function() {
-        assert.equal(tcc._func_decl('int', 'a', ['int', 'int'], false, true), 'int (*a)(int , int )');
+        assert.strictEqual(tcc._func_decl('int', 'a', ['int', 'int'], false, true), 'int (*a)(int , int )');
       });
       it('int* (*a)(char*)', function() {
-        assert.equal(tcc._func_decl('int*', 'a', ['char*'], false, true), 'int* (*a)(char (*))');
+        assert.strictEqual(tcc._func_decl('int*', 'a', ['char*'], false, true), 'int* (*a)(char (*))');
       });
       it('int** (*a)(char**, char**)', function() {
-        assert.equal(tcc._func_decl('int**', 'a', ['char**', 'char**'], false, true),
+        assert.strictEqual(tcc._func_decl('int**', 'a', ['char**', 'char**'], false, true),
             'int** (*a)(char (*(*)), char (*(*)))');
       });
       it('struct T* (*a)(struct T)', function() {
         let T = tcc.c_struct('T', StructType());
-        assert.equal(tcc._func_decl(ref.refType(T), 'a', [T], false, true),
+        assert.strictEqual(tcc._func_decl(ref.refType(T), 'a', [T], false, true),
             'struct T* (*a)(struct T )');
       });
       it('void (*a)(struct T**)', function() {
         let T = tcc.c_struct('T', StructType());
-        assert.equal(tcc._func_decl('void', 'a', [ref.refType(ref.refType(T))], false, true),
+        assert.strictEqual(tcc._func_decl('void', 'a', [ref.refType(ref.refType(T))], false, true),
             'void (*a)(struct T (*(*)))');
       });
       it('struct T** (*test)(struct T *(*[5])[10])', function() {
         let T = tcc.c_struct('T', StructType({a: 'int'}));
         let A1 = ArrayType(ref.refType(T), 10);
         let A2 = ArrayType(ref.refType(A1), 5);
-        assert.equal(tcc._func_decl(ref.refType(ref.refType(T)), 'test', [A2], false, true),
+        assert.strictEqual(tcc._func_decl(ref.refType(ref.refType(T)), 'test', [A2], false, true),
             'struct T** (*test)(struct T (*((*([5]))[10])))');
       });
       it('struct T** test(struct T *(*[5])[10], ...)', function() {
         let T = tcc.c_struct('T', StructType({a: 'int'}));
         let A1 = ArrayType(ref.refType(T), 10);
         let A2 = ArrayType(ref.refType(A1), 5);
-        assert.equal(tcc._func_decl(ref.refType(ref.refType(T)), 'test', [A2], true, false),
+        assert.strictEqual(tcc._func_decl(ref.refType(ref.refType(T)), 'test', [A2], true, false),
             'struct T** test(struct T (*((*([5]))[10])), ...)');
       });
       it('struct T** (*test)(struct T *(*[5])[10], ...)', function() {
         let T = tcc.c_struct('T', StructType({a: 'int'}));
         let A1 = ArrayType(ref.refType(T), 10);
         let A2 = ArrayType(ref.refType(A1), 5);
-        assert.equal(tcc._func_decl(ref.refType(ref.refType(T)), 'test', [A2], true, true),
+        assert.strictEqual(tcc._func_decl(ref.refType(ref.refType(T)), 'test', [A2], true, true),
             'struct T** (*test)(struct T (*((*([5]))[10])), ...)');
       });
   });
@@ -332,22 +332,22 @@ float test2 = 1.23;
     });
     it('declare simple struct', function() {
       let S = tcc.c_struct('S', StructType({a: 'int'}));
-      assert.equal(S.declaration.forward, 'struct S;');
-      assert.equal(S.declaration.code(),
+      assert.strictEqual(S.declaration.forward, 'struct S;');
+      assert.strictEqual(S.declaration.code(),
         'struct __attribute__((aligned('+ S.alignment +'))) S {\n  int a;\n};'
       );
     });
     it('declare struct with struct member', function() {
       let S = tcc.c_struct('S', StructType({a: 'int'}));
       let T = tcc.c_struct('T', StructType({a: S}));
-      assert.equal(T.declaration.code(),
+      assert.strictEqual(T.declaration.code(),
         'struct __attribute__((aligned('+ S.alignment +'))) T {\n  struct S a;\n};'
       );
     });
     it('declare struct with self pointer', function() {
       let S = StructType({});
       S.defineProperty('self', ref.refType(S));
-      assert.equal(tcc.c_struct('S', S).declaration.code(),
+      assert.strictEqual(tcc.c_struct('S', S).declaration.code(),
         'struct __attribute__((aligned('+ S.alignment +'))) S {\n  struct S (*self);\n};'
       );
     });
@@ -356,10 +356,10 @@ float test2 = 1.23;
       state.relocate();
       let S = StructType({a: 'int'});
       let s = state.resolveSymbol('s', S);
-      assert.equal(s.a, 123);
+      assert.strictEqual(s.a, 123);
       s.a = 999;
       s = state.resolveSymbol('s', S);
-      assert.equal(s.a, 999);
+      assert.strictEqual(s.a, 999);
     });
     it('generate, resolve and set struct member', function() {
       let gen = tcc.CodeGenerator();
@@ -369,10 +369,10 @@ float test2 = 1.23;
       state.compile(gen.code());
       state.relocate();
       let s = state.resolveSymbol('s', S);
-      assert.equal(s.a, 123);
+      assert.strictEqual(s.a, 123);
       s.a = 999;
       s = state.resolveSymbol('s', S);
-      assert.equal(s.a, 999);
+      assert.strictEqual(s.a, 999);
     });
     it('struct as c_parameter', function() {
       let gen = tcc.CodeGenerator();
@@ -383,7 +383,7 @@ float test2 = 1.23;
       state.compile(gen.code());
       state.relocate();
       gen.bindState(state);
-      assert.equal(add(S({a: 23}), S({a: 42})), 65);
+      assert.strictEqual(add(S({a: 23}), S({a: 42})), 65);
     });
     it('struct pointer as c_function parameter', function() {
       let gen = tcc.CodeGenerator();
@@ -395,7 +395,7 @@ float test2 = 1.23;
       state.relocate();
       gen.bindState(state);
       let s = S({a: 23});
-      assert.equal(add(s.ref(), S({a: 42})), 65);
+      assert.strictEqual(add(s.ref(), S({a: 42})), 65);
     });
     it('struct as c_function return value', function() {
       let gen = tcc.CodeGenerator();
@@ -407,8 +407,8 @@ float test2 = 1.23;
       state.relocate();
       gen.bindState(state);
       let result = add(S({a: 23}), S({a: 42}));
-      assert.equal(result instanceof S, true);
-      assert.equal(result.a, 65);
+      assert.strictEqual(result instanceof S, true);
+      assert.strictEqual(result.a, 65);
     });
     it('struct pointer as c_function return value', function() {
       let gen = tcc.CodeGenerator();
@@ -422,8 +422,8 @@ float test2 = 1.23;
       gen.bindState(state);
       let s = S({a: 23});
       let result = add(s.ref(), S({a: 42}));
-      assert.equal(result.deref() instanceof S, true);
-      assert.equal(result.deref().a, 65);
+      assert.strictEqual(result.deref() instanceof S, true);
+      assert.strictEqual(result.deref().a, 65);
     });
     it('struct as c_callable return value', function() {
       let gen = tcc.CodeGenerator();
@@ -439,8 +439,8 @@ float test2 = 1.23;
       state.relocate();
       gen.bindState(state);
       let result = use();
-      assert.equal(result instanceof S, true);
-      assert.equal(result.a, 123);
+      assert.strictEqual(result instanceof S, true);
+      assert.strictEqual(result.a, 123);
     });
     it('struct pointer as c_callable return value', function() {
       let gen = tcc.CodeGenerator();
@@ -463,9 +463,9 @@ float test2 = 1.23;
       state.relocate();
       gen.bindState(state);
       let result = use();
-      assert.equal(result.deref() instanceof S, true);
-      assert.equal(result.deref().a, 999);
-      assert.equal(result.address(), obj.ref().address());
+      assert.strictEqual(result.deref() instanceof S, true);
+      assert.strictEqual(result.deref().a, 999);
+      assert.strictEqual(result.address(), obj.ref().address());
     });
     it('alignment', function() {
       let gen = tcc.CodeGenerator();
@@ -497,11 +497,11 @@ float test2 = 1.23;
       state.relocate();
       gen.bindState(state);
       let result = init_struct();
-      assert.equal(result.a, 1);
-      assert.equal(result.b, 2);
-      assert.equal(result.c, 3);
-      assert.equal(result.d, 4);
-      assert.equal(result.e.buffer.readCString(), '1234567890123456789');
+      assert.strictEqual(result.a, 1);
+      assert.strictEqual(result.b, 2);
+      assert.strictEqual(result.c, 3);
+      assert.strictEqual(result.d, 4);
+      assert.strictEqual(result.e.buffer.readCString(), '1234567890123456789');
     });
   });
   describe('array tests', function() {
@@ -527,7 +527,7 @@ float test2 = 1.23;
       let gen = tcc.CodeGenerator();
       let A = ArrayType('int', 3);
       let S = tcc.c_struct('S', StructType({a: A}));
-      assert.equal(S.declaration.code(),
+      assert.strictEqual(S.declaration.code(),
         'struct __attribute__((aligned(4))) S {\n  int (a[3]);\n};');
       gen.addDeclaration(S);
       gen.addDeclaration(tcc.Declaration('struct S s = {{1, 2, 3}};'));
@@ -541,7 +541,7 @@ float test2 = 1.23;
       let A = ArrayType('int', 3);
       let S = tcc.c_struct('S', StructType({a: ref.refType(A)}));
       gen.addDeclaration(S);
-      assert.equal(S.declaration.code(),
+      assert.strictEqual(S.declaration.code(),
           'struct __attribute__((aligned(8))) S {\n  int ((*a)[3]);\n};');
     });
   });
@@ -554,37 +554,37 @@ float test2 = 1.23;
       gen = tcc.CodeGenerator();
     });
     it('wchar types in ref.types', function() {
-      assert.equal(ref.types.wchar_t.name, 'wchar_t');
-      assert.equal(ref.types.WCString.name, 'WCString');
-      assert.equal(ref.coerceType('wstring'), ref.types.WCString);
+      assert.strictEqual(ref.types.wchar_t.name, 'wchar_t');
+      assert.strictEqual(ref.types.WCString.name, 'WCString');
+      assert.strictEqual(ref.coerceType('wstring'), ref.types.WCString);
     });
     it('WCString creation', function() {
       let ws = tcc.WCString('ümläüts with €');
-      assert.equal(wchar_t.toString(ws), 'ümläüts with €\0');
+      assert.strictEqual(wchar_t.toString(ws), 'ümläüts with €\0');
     });
     it('get and set wchar_t symbol', function() {
       state.compile('#include <wchar.h>\nwchar_t w = L\'a\';');
       state.relocate();
       let w = state.resolveSymbol('w', 'wchar_t');
-      assert.equal(w.deref(), 'a');
+      assert.strictEqual(w.deref(), 'a');
       state.setSymbol('w', ref.alloc('wchar_t', '€'));
-      assert.equal(w.deref(), '€');
+      assert.strictEqual(w.deref(), '€');
     });
     it('get wchar_t* symbol', function() {
       state.compile('#include <wchar.h>\nwchar_t w[] = L"wide chars!";');
       state.relocate();
       let w1 = state.resolveSymbol('w', 'WCString');
-      assert.equal(wchar_t.toString(w1.reinterpretUntilZeros(wchar_t.size)), 'wide chars!');
+      assert.strictEqual(wchar_t.toString(w1.reinterpretUntilZeros(wchar_t.size)), 'wide chars!');
       let w2 = state.resolveSymbol('w', 'wchar_t*');
-      assert.equal(wchar_t.toString(w2.reinterpretUntilZeros(wchar_t.size)), 'wide chars!');
+      assert.strictEqual(wchar_t.toString(w2.reinterpretUntilZeros(wchar_t.size)), 'wide chars!');
     });
     it('escape wchar literals in source', function() {
       state.compile('#include <wchar.h>\nwchar_t w[] = L"'+ tcc.escapeWchar('ümläüts€') + '";');
       state.relocate();
       let w1 = state.resolveSymbol('w', 'WCString');
-      assert.equal(wchar_t.toString(w1.reinterpretUntilZeros(wchar_t.size)), 'ümläüts€');
+      assert.strictEqual(wchar_t.toString(w1.reinterpretUntilZeros(wchar_t.size)), 'ümläüts€');
       let w2 = state.resolveSymbol('w', 'wchar_t*');
-      assert.equal(wchar_t.toString(w2.reinterpretUntilZeros(wchar_t.size)), 'ümläüts€');
+      assert.strictEqual(wchar_t.toString(w2.reinterpretUntilZeros(wchar_t.size)), 'ümläüts€');
     });
     it('wchar_t* as parameter', function() {
       gen.addTopDeclaration(tcc.Declaration('#include <wchar.h>'));
@@ -593,7 +593,7 @@ float test2 = 1.23;
       state.compile(gen.code());
       state.relocate();
       gen.bindState(state);
-      assert.equal(func(tcc.WCString('ümläüts€')), 8);
+      assert.strictEqual(func(tcc.WCString('ümläüts€')), 8);
     });
     it('wchar_t* as return value', function() {
       gen.addTopDeclaration(tcc.Declaration('#include <wchar.h>'));
@@ -608,12 +608,12 @@ float test2 = 1.23;
       state.relocate();
       gen.bindState(state);
       let result = func();
-      assert.equal(wchar_t.toString(result.reinterpretUntilZeros(wchar_t.size)), 'ümläüts€');
+      assert.strictEqual(wchar_t.toString(result.reinterpretUntilZeros(wchar_t.size)), 'ümläüts€');
     });
     it('wchar_t in struct', function() {
-      let S = StructType({a: 'wchar_t', b: ArrayType('wchar_t', 5), c: ref.refType('wchar_t')});
+      let S = StructType({a: wchar_t, b: ArrayType(wchar_t, 5), c: ref.refType(wchar_t)});
       let Sc = tcc.c_struct('S', S);
-        assert.equal(Sc.declaration.code(),
+      assert.strictEqual(Sc.declaration.code(),
 `struct __attribute__((aligned(8))) S {
   wchar_t a;
   wchar_t (b[5]);
@@ -627,11 +627,11 @@ float test2 = 1.23;
       state.compile(gen.code());
       state.relocate();
       let w1 = state.resolveSymbol('w', 'wchar_t*');
-      assert.equal(wchar_t.toString(w1.deref().reinterpretUntilZeros(wchar_t.size)), 'first');
+      assert.strictEqual(wchar_t.toString(w1.deref().reinterpretUntilZeros(wchar_t.size)), 'first');
       let w2 = state.resolveSymbol('w', 'wstring');
-      assert.equal(w2.deref(), 'first');
+      assert.strictEqual(w2.deref(), 'first');
       let w3 = state.resolveSymbol('w', 'WCString');
-      assert.equal(w3.deref(), 'first');
+      assert.strictEqual(w3.deref(), 'first');
     });
   });
   describe('async compilation', function() {
@@ -644,14 +644,14 @@ float test2 = 1.23;
       gen.addDeclaration(S);
       gen.addDeclaration(inc);
       state.compileAsync(gen.code(), (res, err) => {
-        assert.equal(res, 0);
+        assert.strictEqual(res, 0);
         state.relocate();
         gen.bindState(state);
         // some work
         let s = new S({a: 0});
         for (let i=0; i<100; ++i)
           inc(s.ref());
-        assert.equal(s.a, 100);
+        assert.strictEqual(s.a, 100);
         done();
       });
     });
@@ -678,7 +678,7 @@ float test2 = 1.23;
       state.relocate();
       let symbols1 = gen.bindState(state);
       let symbols2 = gen.bindState(state);
-      assert.equal(symbols1, symbols2);
+      assert.strictEqual(symbols1, symbols2);
     });
     it('arrays are not allowed as return type', function() {
       assert.throws(() => { tcc.c_function(ArrayType('int'), 'foo', [], ''); }, Error);
