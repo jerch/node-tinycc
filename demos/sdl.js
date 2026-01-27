@@ -6,6 +6,7 @@
 'use strict';
 const C_CODE = `
 #include <stdio.h>
+#define SDL_DISABLE_IMMINTRIN_H
 #include <SDL2/SDL.h>
 
 typedef void (*Callback)(int, int, int);
@@ -19,7 +20,7 @@ void run_sdl(int width, int height) {
     SDL_Window* window = NULL;
     SDL_Surface* screenSurface = NULL;
     if(SDL_Init(SDL_INIT_VIDEO) < 0 ) {
-        printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
+        printf("SDL could not initialize! SDL_Error: %s\\n", SDL_GetError());
         return;
     }
     window = SDL_CreateWindow("SDL Example",
@@ -28,7 +29,7 @@ void run_sdl(int width, int height) {
                               width, height,
                               SDL_WINDOW_SHOWN);
     if(!window) {
-        printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
+        printf("Window could not be created! SDL_Error: %s\\n", SDL_GetError());
         return;
     }
     screenSurface = SDL_GetWindowSurface(window);

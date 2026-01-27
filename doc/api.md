@@ -7,7 +7,7 @@ With this module it is possible to declare inline C code in nodejs
 and run it on the fly. This is possible due to the fascinating
 Tiny C Compiler originally made by Fabrice Bellard.
 
-**Requires**: <code>module:node-gyp</code>, <code>module:ffi</code>, <code>module:ref</code>  
+**Requires**: <code>module:node-gyp</code>, <code>module:@napi-ffi/ffi-napi</code>, <code>module:@napi-ffi/ref-napi</code>  
 **Note**: The module is still alpha, interfaces are still likely to change a lot.  
 **Example**  
 ```js
@@ -111,7 +111,7 @@ let state1 = Tcc();
 ...
 state1.compile('...') && state1.relocate();  // finished with state1
 
-let state2 = Tcc();  // state1 got corrupted but we are with it anyways
+let state2 = Tcc();  // state1 got corrupted but we are done with it anyways
 ...
 state2.compile('...') && state2.relocate();  // finished with state2
 
@@ -499,7 +499,7 @@ It adds the following types:
 | ulonglong | unsigned long long |
 
 Furthermore it includes `<stddef.h>`, `<stdint.h>` and `<stdbool.h>`.
-If the module `ref-wchar` is installed, `WCString` is typedef'd as
+If the module `ref-wchar-napi` is installed, `WCString` is typedef'd as
 `wchar_t` pointer.
 
 **Kind**: instance method of [<code>CodeGenerator</code>](#module_node-tinycc.CodeGenerator)  
@@ -563,7 +563,7 @@ corresponding type.
 Helper function for easy wide string creation.
 
 **Kind**: static method of [<code>node-tinycc</code>](#module_node-tinycc)  
-**Note**: The function is only exported, if the module `ref-wchar` is installed.  
+**Note**: The function is only exported, if the module `ref-wchar-napi` is installed.  
 
 | Param | Type |
 | --- | --- |
@@ -577,7 +577,7 @@ This is useful when writing C source code strings directly in Javascript.
 The function escapes the UTF-8 input to the appropriate wchar_t type.
 
 **Kind**: static method of [<code>node-tinycc</code>](#module_node-tinycc)  
-**Note**: The function is only exported, if the module `ref-wchar` is installed.  
+**Note**: The function is only exported, if the module `ref-wchar-napi` is installed.  
 
 | Param | Type |
 | --- | --- |
@@ -615,7 +615,7 @@ until we got the real C symbol pointer.
 
 <a name="module_node-tinycc.c_callable"></a>
 
-### tcc.c_callable(restype, name, args, f) ⇒ <code>Declaration</code>
+### tcc.c\_callable(restype, name, args, f) ⇒ <code>Declaration</code>
 Convenvient declaration function to import a function symbol from JS to C code.
 
 The function creates a function pointer declaration in C. After
@@ -641,7 +641,7 @@ gen.addDeclaration(decl);
 
 <a name="module_node-tinycc.c_function"></a>
 
-### tcc.c_function(restype, name, args, code) ⇒ <code>func</code>
+### tcc.c\_function(restype, name, args, code) ⇒ <code>func</code>
 Convenient declaration function to create a C function that is usable from Javascript.
 
 The Javascript code:
@@ -682,10 +682,10 @@ console.log(add(23, 42));  // use it
 
 <a name="module_node-tinycc.c_struct"></a>
 
-### tcc.c_struct(name, structType) ⇒ <code>StructType</code>
+### tcc.c\_struct(name, structType) ⇒ <code>StructType</code>
 Convenient declaration function to declare a struct type usable in C and Javascript.
 
-This function extracts the field names and types of a StructType (module `ref-struct`)
+This function extracts the field names and types of a StructType (module `ref-struct-napi`)
 to create a struct declaration (forward section) and definition for C (code section).
 A field type is resolved recursively to catch complicated type mixtures that
 can easily be build with  StructTypes, ArrayTypes and pointer types
@@ -695,7 +695,7 @@ struct type by `struct name` in C. The struct type can be used at any point wher
 a `ref.types` type is needed, e.g. as function parameter or return type.
 Usage example:
 ```js
-const StructType = require('ref-struct');
+const StructType = require('ref-struct-napi');
 let gen = tcc.CodeGenerator();
 let S = tcc.c_struct('S', StructType({a: 'int', b: 'char*'}));
 addDeclaration(S);
